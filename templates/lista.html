@@ -9,12 +9,11 @@
                 <a href="/" class="btn btn-outline-secondary btn-sm me-3"><i class="bi bi-arrow-left"></i> Voltar</a>
                 <h3 class="m-0 text-warning"><i class="bi bi-cart"></i> Lista: <span class="text-dark">{{ local.nome }}</span></h3>
             </div>
-            <!-- Botão para limpar itens já comprados -->
-            <form action="{{ url_for('limpar_lista', local_id=local.id) }}" method="POST" class="m-0">
-                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Apagar todos os itens já comprados?');">
-                    <i class="bi bi-trash"></i> Limpar Comprados
-                </button>
-            </form>
+            
+            <!-- NOVO BOTÃO: Aciona o Modal de Limpar Comprados -->
+            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalLimparLista">
+                <i class="bi bi-trash"></i> Limpar Comprados
+            </button>
         </div>
 
         <div class="card shadow-sm mb-4 border-0">
@@ -30,9 +29,7 @@
         <div class="list-group shadow-sm">
             {% for item in itens %}
                 <div class="list-group-item d-flex justify-content-between align-items-center p-3 {% if item.comprado %}bg-light text-muted{% endif %}">
-                    
                     <div class="d-flex align-items-center gap-3">
-                        <!-- Ícone de Marcar/Desmarcar com Checkbox Visual -->
                         <form action="{{ url_for('toggle_compra', item_id=item.id) }}" method="POST" class="m-0">
                             <button type="submit" class="btn btn-link p-0 text-decoration-none {% if item.comprado %}text-success{% else %}text-secondary{% endif %}">
                                 {% if item.comprado %}
@@ -42,8 +39,6 @@
                                 {% endif %}
                             </button>
                         </form>
-                        
-                        <!-- Nome e Data -->
                         <div>
                             <span class="fs-5 d-block {% if item.comprado %}text-decoration-line-through{% endif %}">{{ item.nome }}</span>
                             <small class="text-secondary" style="font-size: 0.75rem;"><i class="bi bi-calendar3"></i> {{ item.data_criacao.strftime('%d/%m/%Y %H:%M') }}</small>
@@ -51,7 +46,6 @@
                     </div>
 
                     <div class="d-flex align-items-center gap-3">
-                        <!-- Controles de Quantidade -->
                         <div class="d-flex align-items-center">
                             {% if not item.comprado %}
                                 <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='menos') }}" method="POST" class="m-0">
@@ -66,12 +60,11 @@
                             {% endif %}
                         </div>
 
-                        <!-- Botão Excluir -->
-                        <form action="{{ url_for('excluir_item_lista', item_id=item.id) }}" method="POST" class="m-0">
-                            <button type="submit" class="btn btn-link text-danger p-0"><i class="bi bi-trash3"></i></button>
-                        </form>
+                        <!-- NOVO BOTÃO: Aciona o Modal do Item -->
+                        <button type="button" class="btn btn-link text-danger p-0" data-bs-toggle="modal" data-bs-target="#modalExcluirItem{{ item.id }}">
+                            <i class="bi bi-trash3"></i>
+                        </button>
                     </div>
-
                 </div>
             {% else %}
                 <div class="alert alert-success text-center m-0 border-0 text-secondary bg-light py-4">
@@ -83,4 +76,48 @@
 
     </div>
 </div>
+
+<!-- MODAL: Limpar Comprados -->
+<div class="modal fade" id="modalLimparLista" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash me-2"></i> Limpar Comprados</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body text-start text-dark">
+                Tem certeza que deseja apagar todos os itens já marcados como comprados nesta lista?
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('limpar_lista', local_id=local.id) }}" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-danger">Sim, Limpar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAIS: Excluir Item Individual -->
+{% for item in itens %}
+<div class="modal fade" id="modalExcluirItem{{ item.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-trash3 me-2"></i> Confirmar Exclusão</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body text-start text-dark">
+                Tem certeza que deseja remover o item <strong>{{ item.nome }}</strong> da lista de compras?
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('excluir_item_lista', item_id=item.id) }}" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-danger">Sim, Remover</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
