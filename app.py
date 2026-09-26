@@ -107,9 +107,13 @@ def adicionar_local():
 @login_required
 def ver_despensa(local_id):
     local = Local.query.get_or_404(local_id)
-    # Adicionado o order_by(Produto.nome) para ordenar de A a Z
     produtos = Produto.query.filter_by(local_id=local_id).order_by(Produto.nome).all()
-    return render_template('despensa.html', local=local, produtos=produtos)
+    
+    # Busca o histórico de nomes únicos
+    itens = ItemCompra.query.filter_by(local_id=local_id).all()
+    sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
+    
+    return render_template('despensa.html', local=local, produtos=produtos, sugestoes=sugestoes)
 
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
 @login_required
@@ -196,9 +200,13 @@ def lista_compras(local_id):
 @login_required
 def ver_lista(local_id):
     local = Local.query.get_or_404(local_id)
-    # Ordena primeiro pelo status (comprados no fim) e depois alfabeticamente (A-Z)
     itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado, ItemCompra.nome).all()
-    return render_template('lista.html', local=local, itens=itens)
+    
+    # Busca o histórico de nomes únicos (juntando despensa e lista)
+    produtos = Produto.query.filter_by(local_id=local_id).all()
+    sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
+    
+    return render_template('lista.html', local=local, itens=itens, sugestoes=sugestoes)
 
 # Rota para adicionar item na lista
 @app.route('/adicionar_lista/<int:local_id>', methods=['POST'])

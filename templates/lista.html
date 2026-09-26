@@ -18,11 +18,17 @@
 
         <div class="card shadow-sm mb-4 border-0">
             <div class="card-body bg-light rounded">
-                <form action="/adicionar_lista/{{ local.id }}" method="POST" class="d-flex gap-2">
-                    <input type="text" name="nome" class="form-control" placeholder="O que falta comprar?" required autofocus>
-                    <input type="number" name="quantidade" class="form-control" style="width: 80px;" value="1" min="1" required>
-                    <button type="submit" class="btn btn-warning fw-bold text-dark"><i class="bi bi-plus-lg"></i></button>
-                </form>
+            <form action="/adicionar_lista/{{ local.id }}" method="POST" class="d-flex gap-2">
+                <input type="text" name="nome" class="form-control" list="historicoNomes" placeholder="O que falta comprar?" required autofocus autocomplete="off">
+                <datalist id="historicoNomes">
+                    {% for sugestao in sugestoes %}
+                        <option value="{{ sugestao }}"></option>
+                    {% endfor %}
+                </datalist>
+                
+                <input type="number" name="quantidade" class="form-control" style="width: 80px;" value="1" min="1" required>
+                <button type="submit" class="btn btn-warning fw-bold text-dark"><i class="bi bi-plus-lg"></i></button>
+            </form>
             </div>
         </div>
 
