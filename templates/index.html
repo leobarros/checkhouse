@@ -20,26 +20,24 @@
 
         <!-- Lista das Casas cadastradas -->
         <h5 class="mb-3 text-secondary">Meus Locais</h5>
-        <div class="list-group shadow-sm">
-            <!-- Esse 'for' é um laço do Jinja2 (Python no HTML) -->
-            {% for local in locais %}
-                <!-- <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
-                    <strong>{{ local.nome }}</strong>
-                    <span class="badge bg-primary rounded-pill">Ver despensa ➔</span>
-                </a> -->
-            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-3">
-                <strong>{{ local.nome }}</strong>
-                <div>
-                    <form action="{{ url_for('eliminar_local', local_id=local.id) }}" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-outline-danger me-2" onclick="return confirm('ATENÇÃO: Apagar este local e todos os produtos nele?');">Excluir</button>
-                    </form>
-                    <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="btn btn-sm btn-primary">Ver despensa ➔</a>
-                </div>
+            <div class="list-group shadow-sm">
+                {% for local in locais %}
+                    <div class="list-group-item list-group-item-action p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <strong class="fs-5">{{ local.nome }}</strong>
+                            <form action="{{ url_for('eliminar_local', local_id=local.id) }}" method="POST" class="m-0">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('ATENÇÃO: Apagar esta casa?');">X</button>
+                            </form>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{{ url_for('ver_lista', local_id=local.id) }}" class="btn btn-warning w-50 fw-bold">🛒 Lista</a>
+                            <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="btn btn-primary w-50 fw-bold">📦 Despensa</a>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info text-center mt-2">Você ainda não tem nenhum local cadastrado.</div>
+                {% endfor %}
             </div>
-            {% else %}
-                <div class="alert alert-info text-center mt-2">Você ainda não tem nenhum local cadastrado.</div>
-            {% endfor %}
-        </div>
 
     </div>
 </div>

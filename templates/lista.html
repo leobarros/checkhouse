@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8 offset-md-2">
+        
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div class="d-flex align-items-center">
+                <a href="/" class="btn btn-outline-secondary btn-sm me-3"><i class="bi bi-arrow-left"></i> Voltar</a>
+                <h3 class="m-0 text-warning"><i class="bi bi-cart"></i> Lista: <span class="text-dark">{{ local.nome }}</span></h3>
+            </div>
+            <!-- Botão para limpar itens já comprados -->
+            <form action="{{ url_for('limpar_lista', local_id=local.id) }}" method="POST" class="m-0">
+                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Apagar todos os itens já comprados?');">
+                    <i class="bi bi-trash"></i> Limpar Comprados
+                </button>
+            </form>
+        </div>
+
+        <div class="card shadow-sm mb-4 border-0">
+            <div class="card-body bg-light rounded">
+                <form action="/adicionar_lista/{{ local.id }}" method="POST" class="d-flex gap-2">
+                    <input type="text" name="nome" class="form-control" placeholder="O que falta comprar?" required autofocus>
+                    <input type="number" name="quantidade" class="form-control" style="width: 80px;" value="1" min="1" required>
+                    <button type="submit" class="btn btn-warning fw-bold text-dark"><i class="bi bi-plus-lg"></i></button>
+                </form>
+            </div>
+        </div>
+
+        <div class="list-group shadow-sm">
+            {% for item in itens %}
+                <div class="list-group-item d-flex justify-content-between align-items-center p-3 {% if item.comprado %}bg-light text-muted{% endif %}">
+                    
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Ícone de Marcar/Desmarcar com Checkbox Visual -->
+                        <form action="{{ url_for('toggle_compra', item_id=item.id) }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-link p-0 text-decoration-none {% if item.comprado %}text-success{% else %}text-secondary{% endif %}">
+                                {% if item.comprado %}
+                                    <i class="bi bi-check-circle-fill fs-4"></i>
+                                {% else %}
+                                    <i class="bi bi-circle fs-4"></i>
+                                {% endif %}
+                            </button>
+                        </form>
+                        
+                        <!-- Nome e Data -->
+                        <div>
+                            <span class="fs-5 d-block {% if item.comprado %}text-decoration-line-through{% endif %}">{{ item.nome }}</span>
+                            <small class="text-secondary" style="font-size: 0.75rem;"><i class="bi bi-calendar3"></i> {{ item.data_criacao.strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Controles de Quantidade -->
+                        <div class="d-flex align-items-center">
+                            {% if not item.comprado %}
+                                <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='menos') }}" method="POST" class="m-0">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary px-2 py-0"><i class="bi bi-dash"></i></button>
+                                </form>
+                                <span class="mx-2 fw-bold fs-5">{{ item.quantidade }}</span>
+                                <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='mais') }}" method="POST" class="m-0">
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary px-2 py-0"><i class="bi bi-plus"></i></button>
+                                </form>
+                            {% else %}
+                                <span class="badge bg-secondary rounded-pill fs-6">{{ item.quantidade }}</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botão Excluir -->
+                        <form action="{{ url_for('excluir_item_lista', item_id=item.id) }}" method="POST" class="m-0">
+                            <button type="submit" class="btn btn-link text-danger p-0"><i class="bi bi-trash3"></i></button>
+                        </form>
+                    </div>
+
+                </div>
+            {% else %}
+                <div class="alert alert-success text-center m-0 border-0 text-secondary bg-light py-4">
+                    <i class="bi bi-emoji-smile fs-3 d-block mb-2 text-success"></i>
+                    Sua lista está vazia. Tudo abastecido!
+                </div>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
