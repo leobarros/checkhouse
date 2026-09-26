@@ -55,7 +55,12 @@
                             </div>
                         </td>
                         <td class="text-end">
-                            <!-- NOVO BOTÃO: Aciona o Modal -->
+                            <!-- NOVO BOTÃO: Editar (Lápis) -->
+                            <button type="button" class="btn btn-link text-primary p-0 me-3" data-bs-toggle="modal" data-bs-target="#modalEditarProduto{{ produto.id }}">
+                                <i class="bi bi-pencil-square fs-5"></i>
+                            </button>
+                            
+                            <!-- BOTÃO EXISTENTE: Eliminar (Lixeira) -->
                             <button type="button" class="btn btn-link text-danger p-0" data-bs-toggle="modal" data-bs-target="#modalExcluirProduto{{ produto.id }}">
                                 <i class="bi bi-trash3 fs-5"></i>
                             </button>
@@ -96,6 +101,35 @@
                     <button type="submit" class="btn btn-danger">Sim, Remover</button>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+<!-- MODAIS DE EDIÇÃO DA DESPENSA -->
+{% for produto in produtos %}
+<div class="modal fade" id="modalEditarProduto{{ produto.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="bi bi-pencil-square me-2"></i> Editar Produto
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <!-- Formulário que envia o novo nome para a rota -->
+            <form action="{{ url_for('editar_produto', produto_id=produto.id) }}" method="POST">
+                <div class="modal-body text-start text-dark">
+                    <div class="mb-3">
+                        <label for="nomeProduto{{ produto.id }}" class="form-label">Nome do Produto</label>
+                        <!-- O input já vem preenchido com o nome atual -->
+                        <input type="text" class="form-control" id="nomeProduto{{ produto.id }}" name="nome" value="{{ produto.nome }}" required autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar Alterações</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

@@ -194,6 +194,18 @@ def limpar_lista(local_id):
     db.session.commit()
     return redirect(url_for('ver_lista', local_id=local_id))
 
+# Rota para editar o nome do produto na despensa
+@app.route('/editar_produto/<int:produto_id>', methods=['POST'])
+def editar_produto(produto_id):
+    produto = Produto.query.get_or_404(produto_id)
+    novo_nome = request.form.get('nome')
+    
+    if novo_nome:
+        produto.nome = novo_nome
+        db.session.commit()
+        
+    return redirect(url_for('ver_despensa', local_id=produto.local_id))
+
 if __name__ == '__main__':
     # o host='0.0.0.0' permite que você acesse de outros dispositivos na sua rede local
     app.run(debug=True, host='0.0.0.0', port=5000)
