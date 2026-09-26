@@ -107,8 +107,8 @@ def adicionar_local():
 @login_required
 def ver_despensa(local_id):
     local = Local.query.get_or_404(local_id)
-    produtos = Produto.query.filter_by(local_id=local_id).all()
-
+    # Adicionado o order_by(Produto.nome) para ordenar de A a Z
+    produtos = Produto.query.filter_by(local_id=local_id).order_by(Produto.nome).all()
     return render_template('despensa.html', local=local, produtos=produtos)
 
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
@@ -196,7 +196,8 @@ def lista_compras(local_id):
 @login_required
 def ver_lista(local_id):
     local = Local.query.get_or_404(local_id)
-    itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado).all()
+    # Ordena primeiro pelo status (comprados no fim) e depois alfabeticamente (A-Z)
+    itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado, ItemCompra.nome).all()
     return render_template('lista.html', local=local, itens=itens)
 
 # Rota para adicionar item na lista
