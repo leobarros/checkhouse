@@ -1,0 +1,14 @@
+# Ignora a pasta de dados local e qualquer arquivo de banco de dados
+dados/
+*.db
+*.sqlite
+*.sqlite3
+
+# Ignora o ambiente virtual e arquivos de sistema
+venv/
+env/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+Dockerfile
