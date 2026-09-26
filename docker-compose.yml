@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  checkhouse:
+    build: .
+    container_name: checkhouse_app
+    restart: unless-stopped
+    ports:
+     - "5000:5000"
+    volumes:
+     - ./dados:/app/dados
+    environment:
+     - TZ=America/Sao_Paulo

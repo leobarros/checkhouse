@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <h3 class="m-0 text-danger">🛒 Compras: {{ local.nome }}</h3>
+            <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="btn btn-outline-secondary btn-sm">⬅ Voltar</a>
+        </div>
+
+        <div class="list-group shadow-sm">
+            {% for produto in produtos %}
+            <label class="list-group-item d-flex gap-3 bg-light">
+                <input class="form-check-input flex-shrink-0" type="checkbox" style="font-size: 1.375em;">
+                <span class="pt-1 form-checked-content">
+                    <strong>{{ produto.nome }}</strong>
+                </span>
+            </label>
+            {% else %}
+            <div class="alert alert-success text-center">Tudo abastecido! Não há itens em falta nesta casa.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
