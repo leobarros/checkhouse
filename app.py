@@ -1,10 +1,11 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for
-from models import db, Local, Produto, ItemCompra
-from datetime import datetime
+from flask import Flask, render_template, request, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, Local, Produto, ItemCompra, Usuario
 
 app = Flask(__name__)
-
+app.config['SECRET_KEY'] = 'y&qyY7ZRc%RQ&EbtU49LSQKWEQ%&^#@!$%&*()_+'
 #criando pasta para o banco de dados
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 PASTA_DADOS = os.path.join(BASE_DIR, 'dados')
@@ -20,18 +21,79 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # conecta o banco de dados ao nosso app flask
 db.init_app(app)
 
+# Configuração do Gerenciador de Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login' # Se não estiver logado, redireciona para cá
+login_manager.login_message = "Por favor, faça login para acessar esta página."
+login_manager.login_message_category = "warning"
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Usuario.query.get(int(user_id))
+
+with app.app_context():
+    db.create_all()
+
 # antes da primeira requisição, cria as tabelas no banco de dados se não existirem
 with app.app_context():
     db.create_all()
 
-# nossa primeira rota (url principal)
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        senha = request.form.get('senha')
+        
+        usuario = Usuario.query.filter_by(username=username).first()
+        
+        # Verifica se o usuário existe e se a senha bate com o hash salvo
+        if usuario and check_password_hash(usuario.senha_hash, senha):
+            login_user(usuario)
+            return redirect(url_for('index'))
+        else:
+            flash('Usuário ou senha incorretos.', 'danger')
+            
+    return render_template('login.html')
+
+@app.route('/registrar', methods=['GET', 'POST'])
+def registrar():
+    # Rota temporária/oculta para você criar seu primeiro usuário
+    if request.method == 'POST':
+        username = request.form.get('username')
+        senha = request.form.get('senha')
+        
+        if Usuario.query.filter_by(username=username).first():
+            flash('Usuário já existe.', 'danger')
+            return redirect(url_for('registrar'))
+            
+        # Cria um HASH forte da senha em vez de salvar em texto limpo
+        nova_senha_hash = generate_password_hash(senha)
+        novo_usuario = Usuario(username=username, senha_hash=nova_senha_hash)
+        
+        db.session.add(novo_usuario)
+        db.session.commit()
+        flash('Usuário criado com sucesso! Faça login.', 'success')
+        return redirect(url_for('login'))
+        
+    return render_template('registrar.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+# nossa primeira rota (url principal)
 @app.route('/')
+@login_required
 def index():
     todos_locais = Local.query.all()
     return render_template('index.html', locais=todos_locais)
 
 @app.route('/adicionar_local', methods=['POST'])
+@login_required
 def adicionar_local():
     nome_do_local = request.form.get('nome')
 
@@ -42,6 +104,7 @@ def adicionar_local():
     return redirect(url_for('index'))
 
 @app.route('/despensa/<int:local_id>')
+@login_required
 def ver_despensa(local_id):
     local = Local.query.get_or_404(local_id)
     produtos = Produto.query.filter_by(local_id=local_id).all()
@@ -49,6 +112,7 @@ def ver_despensa(local_id):
     return render_template('despensa.html', local=local, produtos=produtos)
 
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
+@login_required
 def adicionar_produto(local_id):
     nome = request.form.get('nome')
     quantidade = request.form.get('quantidade', 1, type=int)
@@ -65,6 +129,7 @@ def adicionar_produto(local_id):
     return redirect(url_for('ver_despensa', local_id=local_id))
 
 @app.route('/eliminar_produto/<int:produto_id>', methods=['POST'])
+@login_required
 def eliminar_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
     local_id = produto.local_id
@@ -76,6 +141,7 @@ def eliminar_produto(produto_id):
 
 # Rota para incrementar ou decrementar a quantidade na despensa
 @app.route('/atualizar_qtd/<int:produto_id>/<acao>', methods=['POST'])
+@login_required
 def atualizar_qtd(produto_id, acao):
     produto = Produto.query.get_or_404(produto_id)
     
@@ -108,6 +174,7 @@ def atualizar_qtd(produto_id, acao):
     return redirect(url_for('ver_despensa', local_id=produto.local_id))
 
 @app.route('/eliminar_local/<int:local_id>', methods=['POST'])
+@login_required
 def eliminar_local(local_id):
     local = Local.query.get_or_404(local_id)
     Produto.query.filter_by(local_id=local_id).delete()
@@ -117,6 +184,7 @@ def eliminar_local(local_id):
     return redirect(url_for('index'))
 
 @app.route('/compras/<int:local_id>')
+@login_required
 def lista_compras(local_id):
     local = Local.query.get_or_404(local_id)
     produtos_em_falta = Produto.query.filter_by(local_id=local_id, quantidade=0).all()
@@ -125,6 +193,7 @@ def lista_compras(local_id):
 
 # Rota para ver a Lista de Compras de um local
 @app.route('/lista/<int:local_id>')
+@login_required
 def ver_lista(local_id):
     local = Local.query.get_or_404(local_id)
     itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado).all()
@@ -144,6 +213,7 @@ def adicionar_lista(local_id):
 
 # Rota para alterar a quantidade na lista (+ e -)
 @app.route('/atualizar_lista_qtd/<int:item_id>/<acao>', methods=['POST'])
+@login_required
 def atualizar_lista_qtd(item_id, acao):
     item = ItemCompra.query.get_or_404(item_id)
     if not item.comprado:
@@ -156,6 +226,7 @@ def atualizar_lista_qtd(item_id, acao):
 
 # Rota para Marcar/Desmarcar item (MÁGICA REVERSÍVEL)
 @app.route('/toggle_compra/<int:item_id>', methods=['POST'])
+@login_required
 def toggle_compra(item_id):
     item = ItemCompra.query.get_or_404(item_id)
     produto_existente = Produto.query.filter(Produto.nome.ilike(item.nome), Produto.local_id == item.local_id).first()
@@ -179,6 +250,7 @@ def toggle_compra(item_id):
 
 # Rota para excluir um item específico da lista
 @app.route('/excluir_item_lista/<int:item_id>', methods=['POST'])
+@login_required
 def excluir_item_lista(item_id):
     item = ItemCompra.query.get_or_404(item_id)
     local_id = item.local_id
@@ -188,6 +260,7 @@ def excluir_item_lista(item_id):
 
 # Rota para limpar todos os itens comprados (Limpar Lixo)
 @app.route('/limpar_lista/<int:local_id>', methods=['POST'])
+@login_required
 def limpar_lista(local_id):
     # Apaga apenas os itens que já foram comprados
     ItemCompra.query.filter_by(local_id=local_id, comprado=True).delete()
@@ -196,6 +269,7 @@ def limpar_lista(local_id):
 
 # Rota para editar o nome do produto na despensa
 @app.route('/editar_produto/<int:produto_id>', methods=['POST'])
+@login_required
 def editar_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
     novo_nome = request.form.get('nome')

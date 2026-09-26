@@ -1,7 +1,15 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 from datetime import datetime
 
 db = SQLAlchemy()
+
+# NOVA TABELA: Usuários
+class Usuario(db.Model, UserMixin):
+    __tablename__ = 'usuario'
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(50), unique=True, nullable=False)
+    senha_hash = db.Column(db.String(256), nullable=False)
 
 class Local(db.Model):
     __tablename__ = 'local'

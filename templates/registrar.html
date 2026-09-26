@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-5">
+                <h3 class="text-center text-success mb-4">Criar Usuário</h3>
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+                <form method="POST" action="{{ url_for('registrar') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Novo Usuário</label>
+                        <input type="text" name="username" class="form-control" required autofocus>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Senha Forte</label>
+                        <input type="password" name="senha" class="form-control" minlength="6" required>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold">Criar Conta</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

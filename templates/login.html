@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-5">
+        <div class="card shadow border-0">
+            <div class="card-body p-5">
+                <div class="text-center mb-4">
+                    <h1 class="display-4">🏠</h1>
+                    <h3 class="text-primary">Login - CheckHouse</h3>
+                </div>
+                
+                <!-- Exibição de Mensagens de Erro -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                  {% if messages %}
+                    {% for category, message in messages %}
+                      <div class="alert alert-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                  {% endif %}
+                {% endwith %}
+
+                <form method="POST" action="{{ url_for('login') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Usuário</label>
+                        <input type="text" name="username" class="form-control" required autofocus>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Senha</label>
+                        <input type="password" name="senha" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">Entrar</button>
+                    
+                    <!-- NOVO: Link para a página de registro -->
+                    <div class="text-center mt-3">
+                        <small class="text-muted">Não tem uma conta? <a href="{{ url_for('registrar') }}" class="text-primary text-decoration-none fw-bold">Registre-se aqui</a></small>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
