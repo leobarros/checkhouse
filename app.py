@@ -74,15 +74,36 @@ def eliminar_produto(produto_id):
 
     return redirect(url_for('ver_despensa', local_id=local_id))
 
+# Rota para incrementar ou decrementar a quantidade na despensa
 @app.route('/atualizar_qtd/<int:produto_id>/<acao>', methods=['POST'])
 def atualizar_qtd(produto_id, acao):
     produto = Produto.query.get_or_404(produto_id)
-
+    
     if acao == 'mais':
         produto.quantidade += 1
     elif acao == 'menos' and produto.quantidade > 0:
         produto.quantidade -= 1
-
+        
+        # --- LÓGICA AUTOMÁTICA DA LISTA DE COMPRAS ---
+        if produto.quantidade == 0:
+            # Verifica se o item já está na lista de compras (e ainda não foi comprado)
+            # Usamos ilike para ignorar diferenças entre maiúsculas e minúsculas
+            item_existente = ItemCompra.query.filter(
+                ItemCompra.nome.ilike(produto.nome),
+                ItemCompra.local_id == produto.local_id,
+                ItemCompra.comprado == False
+            ).first()
+            
+            # Se não estiver na lista, adiciona automaticamente
+            if not item_existente:
+                novo_item_lista = ItemCompra(
+                    nome=produto.nome,
+                    quantidade=1, # Sugere 1 para a próxima compra
+                    local_id=produto.local_id
+                )
+                db.session.add(novo_item_lista)
+        # ----------------------------------------------
+        
     db.session.commit()
     return redirect(url_for('ver_despensa', local_id=produto.local_id))
 
