@@ -1,25 +1,40 @@
 <!DOCTYPE html>
 <html lang="pt-br">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>CheckHouse</title>
-            <!-- Link para o Bootstrap 5 -->
-            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-            <!-- Link para os Bootstrap Icons -->
-            <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    </head>
-    <body class="bg-light">
-        <!-- Barra de navegacao -->
-         <nav class="navbar navbar-dark bg-primary mb-4" shadown-sm>
-            <div class="container">
-                <a class="navbar-brand" href="/">🏠 CheckHouse</a>
-            </div>
-         </nav>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CheckHouse</title>
+    <!-- Link para o Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Link para os Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="bg-light d-flex flex-column min-vh-100">
+    
+    <!-- Barra de Navegação no topo -->
+    <nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="/">🏠 CheckHouse</a>
+        </div>
+    </nav>
 
-         <!-- o conteudo de cada página -->
-          <div class="container">
-            {% block content %}{% endblock %}
-          </div>
-    </body>
+    <!-- O conteúdo de cada página vai entrar aqui -->
+    <div class="container mb-5">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Rodapé -->
+    <footer class="mt-auto py-3 bg-white border-top shadow-sm">
+        <div class="container text-center">
+            <small class="text-muted">
+                Desenvolvido por <strong class="text-secondary">Leonardo Sales</strong> &copy; <span id="anoAtual"></span>
+            </small>
+        </div>
+    </footer>
+
+    <!-- Script para atualizar o ano automaticamente -->
+    <script>
+        document.getElementById('anoAtual').textContent = new Date().getFullYear();
+    </script>
+</body>
 </html>
