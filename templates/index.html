@@ -47,13 +47,13 @@
                                 </h5>
                                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
                             </div>
-                            <div class="modal-body text-start text-dark text-wrap">
+                            <div class="modal-body text-start text-wrap">
                                 Tem certeza de que deseja apagar o local <strong>{{ local.nome }}</strong>?<br><br>
                                 <span class="text-danger small">
                                     <strong>Atenção:</strong> Todos os itens da despensa e da lista de compras deste local também serão apagados permanentemente.
                                 </span>
                             </div>
-                            <div class="modal-footer bg-light">
+                            <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                                 <form action="{{ url_for('eliminar_local', local_id=local.id) }}" method="POST" class="m-0">
                                     <button type="submit" class="btn btn-danger">Sim, Excluir</button>

@@ -97,10 +97,10 @@
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body text-start text-dark">
+            <div class="modal-body text-start">
                 Tem certeza que deseja remover o produto <strong>{{ produto.nome }}</strong> definitivamente da despensa?
             </div>
-            <div class="modal-footer bg-light">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <form action="{{ url_for('eliminar_produto', produto_id=produto.id) }}" method="POST" class="m-0">
                     <button type="submit" class="btn btn-danger">Sim, Remover</button>
@@ -123,14 +123,14 @@
             </div>
             <!-- Formulário que envia o novo nome para a rota -->
             <form action="{{ url_for('editar_produto', produto_id=produto.id) }}" method="POST">
-                <div class="modal-body text-start text-dark">
+                <div class="modal-body text-start">
                     <div class="mb-3">
                         <label for="nomeProduto{{ produto.id }}" class="form-label">Nome do Produto</label>
                         <!-- O input já vem preenchido com o nome atual -->
                         <input type="text" class="form-control" id="nomeProduto{{ produto.id }}" name="nome" value="{{ produto.nome }}" required autofocus>
                     </div>
                 </div>
-                <div class="modal-footer bg-light">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Guardar Alterações</button>
                 </div>

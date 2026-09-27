@@ -1,8 +1,10 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+import json
+from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Local, Produto, ItemCompra, Usuario
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'y&qyY7ZRc%RQ&EbtU49LSQKWEQ%&^#@!$%&*()_+'
@@ -321,6 +323,72 @@ def editar_produto(produto_id):
         
     return redirect(url_for('ver_despensa', local_id=produto.local_id))
 
+# Administracao do usuário
+@app.route('/configuracoes')
+@login_required
+def configuracoes():
+    return render_template('configuracoes.html')
+
+@app.route('/alterar_senha', methods=['POST'])
+@login_required
+def alterar_senha():
+    senha_atual = request.form.get('senha_atual')
+    nova_senha = request.form.get('nova_senha')
+    
+    if check_password_hash(current_user.senha_hash, senha_atual):
+        current_user.senha_hash = generate_password_hash(nova_senha)
+        db.session.commit()
+        flash('Palavra-passe atualizada com sucesso!', 'success')
+    else:
+        flash('A palavra-passe atual está incorreta.', 'danger')
+    return redirect(url_for('configuracoes'))
+
+@app.route('/exportar_dados')
+@login_required
+def exportar_dados():
+    locais = Local.query.filter_by(usuario_id=current_user.id).all()
+    dados = []
+    for local in locais:
+        dados_local = {
+            'nome': local.nome,
+            'produtos': [{'nome': p.nome, 'quantidade': p.quantidade} for p in local.produtos],
+            'lista': [{'nome': i.nome, 'quantidade': i.quantidade, 'comprado': i.comprado} for i in local.itens_compra]
+        }
+        dados.append(dados_local)
+        
+    json_str = json.dumps(dados, indent=4)
+    return Response(json_str, mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=checkhouse_backup.json'})
+
+@app.route('/importar_dados', methods=['POST'])
+@login_required
+def importar_dados():
+    arquivo = request.files.get('arquivo')
+    if arquivo and arquivo.filename.endswith('.json'):
+        dados = json.load(arquivo)
+        for l_data in dados:
+            novo_local = Local(nome=l_data['nome'], usuario_id=current_user.id)
+            db.session.add(novo_local)
+            db.session.flush() # Obtém o ID do novo local imediatamente
+            
+            for p_data in l_data.get('produtos', []):
+                db.session.add(Produto(nome=p_data['nome'], quantidade=p_data['quantidade'], local_id=novo_local.id))
+            for i_data in l_data.get('lista', []):
+                db.session.add(ItemCompra(nome=i_data['nome'], quantidade=i_data['quantidade'], comprado=i_data['comprado'], local_id=novo_local.id))
+        
+        db.session.commit()
+        flash('Backup restaurado com sucesso!', 'success')
+    return redirect(url_for('configuracoes'))
+
+@app.route('/excluir_conta', methods=['POST'])
+@login_required
+def excluir_conta():
+    # Como a relação "Local" tem cascade="all, delete-orphan", tudo é apagado automaticamente
+    db.session.delete(current_user)
+    db.session.commit()
+    logout_user()
+    return redirect(url_for('login'))
+
+# Sevidor local para desenvolvimento. Em produção, use um servidor WSGI como Gunicorn ou uWSGI.
 if __name__ == '__main__':
     # o host='0.0.0.0' permite que você acesse de outros dispositivos na sua rede local
     app.run(debug=True, host='0.0.0.0', port=5000)
