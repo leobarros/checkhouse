@@ -11,10 +11,16 @@ class Usuario(db.Model, UserMixin):
     username = db.Column(db.String(50), unique=True, nullable=False)
     senha_hash = db.Column(db.String(256), nullable=False)
 
+    # Relação: Um utilizador pode ter vários locais
+    locais = db.relationship('Local', backref='dono', lazy=True, cascade="all, delete-orphan")
+
 class Local(db.Model):
     __tablename__ = 'local'
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(50), nullable=False)
+
+    # NOVO: Chave estrangeira para associar o local ao utilizador
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=False)
     
     produtos = db.relationship('Produto', backref='local', lazy=True, cascade="all, delete-orphan")
     itens_compra = db.relationship('ItemCompra', backref='local', lazy=True, cascade="all, delete-orphan")

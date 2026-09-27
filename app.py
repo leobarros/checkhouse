@@ -85,20 +85,21 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-# nossa primeira rota (url principal)
+# Rota para a página inicial (Apenas mostra os locais do utilizador logado)
 @app.route('/')
 @login_required
 def index():
-    todos_locais = Local.query.all()
-    return render_template('index.html', locais=todos_locais)
+    locais = Local.query.filter_by(usuario_id=current_user.id).all()
+    return render_template('index.html', locais=locais)
 
+# Rota para adicionar um novo local vinculado ao utilizador
 @app.route('/adicionar_local', methods=['POST'])
 @login_required
 def adicionar_local():
-    nome_do_local = request.form.get('nome')
-
-    if nome_do_local:
-        novo_local = Local(nome=nome_do_local)
+    nome = request.form.get('nome')
+    if nome:
+        # Associa o novo local ao ID do utilizador atual
+        novo_local = Local(nome=nome, usuario_id=current_user.id)
         db.session.add(novo_local)
         db.session.commit()
     return redirect(url_for('index'))
@@ -106,10 +107,10 @@ def adicionar_local():
 @app.route('/despensa/<int:local_id>')
 @login_required
 def ver_despensa(local_id):
-    local = Local.query.get_or_404(local_id)
-    produtos = Produto.query.filter_by(local_id=local_id).order_by(Produto.nome).all()
+    # Verifica se o local existe E se pertence ao utilizador atual
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
     
-    # Busca o histórico de nomes únicos
+    produtos = Produto.query.filter_by(local_id=local_id).order_by(Produto.nome).all()
     itens = ItemCompra.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
     
@@ -118,6 +119,10 @@ def ver_despensa(local_id):
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
 @login_required
 def adicionar_produto(local_id):
+
+    # BARREIRA DE SEGURANÇA: Garante que o utilizador é dono da casa onde está a adicionar o produto
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
+
     nome = request.form.get('nome')
     quantidade = request.form.get('quantidade', 1, type=int)
     
@@ -125,23 +130,25 @@ def adicionar_produto(local_id):
         novo_produto = Produto(
             nome=nome,
             quantidade=quantidade,
-            local_id=local_id
+            local_id=local.id
         )
         db.session.add(novo_produto)
         db.session.commit()
         
-    return redirect(url_for('ver_despensa', local_id=local_id))
+    return redirect(url_for('ver_despensa', local_id=local.id))
 
 @app.route('/eliminar_produto/<int:produto_id>', methods=['POST'])
 @login_required
 def eliminar_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
-    local_id = produto.local_id
-
+    
+    # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
+    if produto.local.usuario_id != current_user.id:
+        return "Acesso Negado", 403 # Retorna erro de permissão
+        
     db.session.delete(produto)
     db.session.commit()
-
-    return redirect(url_for('ver_despensa', local_id=local_id))
+    return redirect(url_for('ver_despensa', local_id=produto.local_id))
 
 # Rota para incrementar ou decrementar a quantidade na despensa
 @app.route('/atualizar_qtd/<int:produto_id>/<acao>', methods=['POST'])
@@ -180,7 +187,7 @@ def atualizar_qtd(produto_id, acao):
 @app.route('/eliminar_local/<int:local_id>', methods=['POST'])
 @login_required
 def eliminar_local(local_id):
-    local = Local.query.get_or_404(local_id)
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
     Produto.query.filter_by(local_id=local_id).delete()
 
     db.session.delete(local)
@@ -199,10 +206,10 @@ def lista_compras(local_id):
 @app.route('/lista/<int:local_id>')
 @login_required
 def ver_lista(local_id):
-    local = Local.query.get_or_404(local_id)
-    itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado, ItemCompra.nome).all()
+    # Verifica se o local existe E se pertence ao utilizador atual
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
     
-    # Busca o histórico de nomes únicos (juntando despensa e lista)
+    itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado, ItemCompra.nome).all()
     produtos = Produto.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
     
@@ -210,21 +217,29 @@ def ver_lista(local_id):
 
 # Rota para adicionar item na lista
 @app.route('/adicionar_lista/<int:local_id>', methods=['POST'])
+@login_required
 def adicionar_lista(local_id):
+    # BARREIRA DE SEGURANÇA: Garante que o utilizador é dono da casa onde está a adicionar o item
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
     nome = request.form.get('nome')
     quantidade = request.form.get('quantidade', 1, type=int)
     
     if nome:
-        novo_item = ItemCompra(nome=nome, quantidade=quantidade, local_id=local_id)
+        novo_item = ItemCompra(nome=nome, quantidade=quantidade, local_id=local.id)
         db.session.add(novo_item)
         db.session.commit()
-    return redirect(url_for('ver_lista', local_id=local_id))
+    return redirect(url_for('ver_lista', local_id=local.id))
 
 # Rota para alterar a quantidade na lista (+ e -)
 @app.route('/atualizar_lista_qtd/<int:item_id>/<acao>', methods=['POST'])
 @login_required
 def atualizar_lista_qtd(item_id, acao):
     item = ItemCompra.query.get_or_404(item_id)
+
+    # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
+    if item.local.usuario_id != current_user.id:
+        return "Acesso Negado", 403 # Retorna erro de permissão
+    
     if not item.comprado:
         if acao == 'mais':
             item.quantidade += 1
@@ -239,6 +254,10 @@ def atualizar_lista_qtd(item_id, acao):
 def toggle_compra(item_id):
     item = ItemCompra.query.get_or_404(item_id)
     produto_existente = Produto.query.filter(Produto.nome.ilike(item.nome), Produto.local_id == item.local_id).first()
+
+    # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
+    if item.local.usuario_id != current_user.id:
+        return "Acesso Negado", 403 # Retorna erro de permissão
     
     if not item.comprado:
         item.comprado = True
@@ -262,6 +281,11 @@ def toggle_compra(item_id):
 @login_required
 def excluir_item_lista(item_id):
     item = ItemCompra.query.get_or_404(item_id)
+
+    # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
+    if item.local.usuario_id != current_user.id:
+        return "Acesso Negado", 403 # Retorna erro de permissão
+
     local_id = item.local_id
     db.session.delete(item)
     db.session.commit()
@@ -271,10 +295,14 @@ def excluir_item_lista(item_id):
 @app.route('/limpar_lista/<int:local_id>', methods=['POST'])
 @login_required
 def limpar_lista(local_id):
+
+    # BARREIRA DE SEGURANÇA: Garante que o utilizador é dono da casa onde está a limpar a lista
+    local = Local.query.filter_by(id=local_id, usuario_id=current_user.id).first_or_404()
+
     # Apaga apenas os itens que já foram comprados
-    ItemCompra.query.filter_by(local_id=local_id, comprado=True).delete()
+    ItemCompra.query.filter_by(local_id=local.id, comprado=True).delete()
     db.session.commit()
-    return redirect(url_for('ver_lista', local_id=local_id))
+    return redirect(url_for('ver_lista', local_id=local.id))
 
 # Rota para editar o nome do produto na despensa
 @app.route('/editar_produto/<int:produto_id>', methods=['POST'])
@@ -282,6 +310,10 @@ def limpar_lista(local_id):
 def editar_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
     novo_nome = request.form.get('nome')
+
+    # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
+    if produto.local.usuario_id != current_user.id:
+        return "Acesso Negado", 403 # Retorna erro de permissão
     
     if novo_nome:
         produto.nome = novo_nome
