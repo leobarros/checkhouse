@@ -233,3 +233,7 @@ __pycache__/
 
 # Ignora variáveis de ambiente (se usar no futuro)
 .env
+# Ignora os resultados dos testes de recursos (medições e containers de teste)
+bench/out/
+bench/.docker/
+bench/__pycache__/

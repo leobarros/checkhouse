@@ -8,19 +8,24 @@ NC='\033[0m' # Sem Cor
 
 echo -e "${AMARELO}A iniciar a instalação/atualização do CheckHouse...${NC}"
 
-# Verifica se o ficheiro docker-compose.yml existe no diretório atual
+# Verifica se o arquivo docker-compose.yml existe no diretório atual
 if [ ! -f "docker-compose.yml" ]; then
-    echo -e "${VERMELHO}Erro: Ficheiro docker-compose.yml não encontrado.${NC}"
+    echo -e "${VERMELHO}Erro: Arquivo docker-compose.yml não encontrado.${NC}"
     echo "Navegue até à pasta do projeto CheckHouse antes de executar este script."
     exit 1
 fi
 
-# Descarrega a imagem mais recente do repositório
-echo "A descarregar a versão mais recente da imagem..."
-docker compose pull
+# Constrói a imagem a partir do código desta pasta (e usa a versão mais recente
+# da imagem base). Assim a aplicação em execução corresponde sempre ao código
+# aqui presente, sem depender de uma imagem antiga publicada no repositório.
+echo "A construir a imagem..."
+if ! docker compose build --pull; then
+    echo -e "${VERMELHO}Falhou a construção da imagem. Nada foi alterado.${NC}"
+    exit 1
+fi
 
-# Inicia ou atualiza o contentor em segundo plano
-echo "A iniciar os contentores..."
+# Inicia ou atualiza o container em segundo plano
+echo "A iniciar os containers..."
 docker compose up -d
 
 # Verifica se o comando anterior foi bem sucedido

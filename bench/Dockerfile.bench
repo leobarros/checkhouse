@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1
+
+COPY requirements.txt .
+# gunicorn e waitress só existem nesta imagem de teste, para comparar servidores
+RUN pip install --no-cache-dir -r requirements.txt gunicorn waitress
+
+COPY app.py models.py ./
+COPY templates ./templates
+COPY static ./static
+
+RUN mkdir -p dados
+
+EXPOSE 5000
+CMD ["python", "app.py"]

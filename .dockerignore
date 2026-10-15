@@ -12,3 +12,8 @@ __pycache__/
 .git/
 .gitignore
 Dockerfile
+
+# Ignora os testes de recursos (carga, séries de medição e relatórios)
+bench/
+docs/
+*.md

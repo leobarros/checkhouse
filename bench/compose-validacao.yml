@@ -1,0 +1,10 @@
+# Override usado apenas nos testes de validação (bench/).
+# Evita tocar na porta 5000 (que pode estar ocupada pela instância real) e na
+# banco de dados verdadeira em ./dados.
+services:
+  checkhouse:
+    container_name: checkhouse_validacao
+    ports: !override
+      - "5057:5000"
+    volumes: !override
+      - ./bench/out/validacao:/app/dados
