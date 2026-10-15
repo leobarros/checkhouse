@@ -1,30 +1,40 @@
 {% extends "base.html" %}
+
+{% block titulo %}Criar usuário · CheckHouse{% endblock %}
+{% block largura %}ch-conteudo ch-conteudo--estreito{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-5">
-        <div class="card shadow border-0">
-            <div class="card-body p-5">
-                <h3 class="text-center text-success mb-4">Criar Usuário</h3>
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                  {% if messages %}
-                    {% for category, message in messages %}
-                      <div class="alert alert-{{ category }}">{{ message }}</div>
-                    {% endfor %}
-                  {% endif %}
-                {% endwith %}
-                <form method="POST" action="{{ url_for('registrar') }}">
-                    <div class="mb-3">
-                        <label class="form-label">Novo Usuário</label>
-                        <input type="text" name="username" class="form-control" required autofocus>
-                    </div>
-                    <div class="mb-4">
-                        <label class="form-label">Senha Forte</label>
-                        <input type="password" name="senha" class="form-control" minlength="6" required>
-                    </div>
-                    <button type="submit" class="btn btn-success w-100 fw-bold">Criar Conta</button>
-                </form>
-            </div>
+<div class="card shadow border-0">
+    <div class="card-body p-4 p-sm-5">
+        <div class="text-center mb-4">
+            <span class="ch-marca-icone ch-marca-icone--grande mb-3" aria-hidden="true">
+                <i class="bi bi-person-plus-fill"></i>
+            </span>
+            <h1 class="h3 text-success-emphasis mb-1">Criar usuário</h1>
+            <p class="text-body-secondary mb-0">Cada usuário tem as suas próprias casas e listas</p>
         </div>
+
+        <form method="POST" action="{{ url_for('registrar') }}">
+            <div class="mb-3">
+                <label class="form-label" for="username">Novo usuário</label>
+                <input type="text" id="username" name="username" class="form-control"
+                       maxlength="50" autocomplete="username" required data-autofocus>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" for="senha">Senha</label>
+                <input type="password" id="senha" name="senha" class="form-control"
+                       minlength="6" autocomplete="new-password" required aria-describedby="dicaSenha">
+                <div id="dicaSenha" class="form-text">Use pelo menos 6 caracteres.</div>
+            </div>
+            <button type="submit" class="btn btn-success w-100 fw-semibold">Criar conta</button>
+
+            <p class="text-center mt-3 mb-0">
+                <small class="text-body-secondary">
+                    Já tem uma conta?
+                    <a href="{{ url_for('login') }}" class="fw-semibold text-decoration-none">Entrar</a>
+                </small>
+            </p>
+        </form>
     </div>
 </div>
 {% endblock %}

@@ -1,73 +1,101 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
+
+{% block titulo %}Meus locais · CheckHouse{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Coluna centralizada -->
-    <div class="col-md-6 offset-md-3 col-sm-12">
-        
-        <!-- Formulário para adicionar um novo Local -->
-        <div class="card shadow-sm mb-4">
-            <div class="card-body">
-                <h5 class="card-title text-center mb-3">Adicionar Nova Casa/Local</h5>
-                <form action="/adicionar_local" method="POST">
-                    <div class="input-group">
-                        <input type="text" name="nome" class="form-control" placeholder="Ex: Casa Principal, Sítio..." required>
-                        <button type="submit" class="btn btn-primary">Adicionar</button>
-                    </div>
-                </form>
+<div class="cabecalho-pagina">
+    <h1>
+        <i class="bi bi-houses text-primary-emphasis" aria-hidden="true"></i>
+        <span class="ch-titulo-texto">Meus locais</span>
+    </h1>
+</div>
+
+<!-- Adicionar local -->
+<div class="ch-form-card mb-4">
+    <h2 class="ch-titulo-secao"><i class="bi bi-plus-circle me-1" aria-hidden="true"></i> Adicionar casa ou local</h2>
+    <form action="{{ url_for('adicionar_local') }}" method="POST">
+        <div class="ch-form-linha">
+            <div class="ch-campo-principal">
+                <label class="visually-hidden" for="nomeLocal">Nome da casa ou local</label>
+                <input type="text" id="nomeLocal" name="nome" class="form-control"
+                       placeholder="Ex.: Casa Principal, Sítio…" maxlength="50"
+                       autocomplete="off" required data-autofocus>
+            </div>
+            <div class="ch-campo-acao">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Adicionar
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Locais cadastrados -->
+<div class="list-group shadow-sm">
+    {% for local in locais %}
+    <div class="list-group-item list-group-item-action p-3">
+        <div class="ch-item mb-3">
+            <div class="ch-item-principal">
+                <i class="bi bi-house-door fs-4 text-primary-emphasis" aria-hidden="true"></i>
+                <span class="ch-item-info">
+                    <span class="ch-item-nome fw-semibold" title="{{ local.nome }}">{{ local.nome }}</span>
+                    <span class="ch-item-meta">
+                        {{ local.produtos | length }} produto{{ '' if local.produtos | length == 1 else 's' }} na despensa
+                    </span>
+                </span>
+            </div>
+            <div class="ch-item-acoes">
+                <button type="button" class="btn-icone btn-link text-danger-emphasis"
+                        data-bs-toggle="modal" data-bs-target="#modalExcluirLocal{{ local.id }}"
+                        aria-label="Excluir o local {{ local.nome }}" title="Excluir local">
+                    <i class="bi bi-trash3 fs-5" aria-hidden="true"></i>
+                </button>
             </div>
         </div>
 
-        <!-- Lista das Casas cadastradas -->
-        <h5 class="mb-3 text-secondary">Meus Locais</h5>
-        <div class="list-group shadow-sm">
-            {% for local in locais %}
-                <!-- CAIXA DO ITEM (Apenas o Botão fica aqui dentro) -->
-                <div class="list-group-item list-group-item-action p-3">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <strong class="fs-5">{{ local.nome }}</strong>
-                        <!-- Botão que aciona o Modal -->
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#modalExcluir{{ local.id }}">
-                            X
-                        </button>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <a href="{{ url_for('ver_lista', local_id=local.id) }}" class="btn btn-warning w-50 fw-bold"><i class="bi bi-cart"></i> Lista</a>
-                        <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="btn btn-primary w-50 fw-bold"><i class="bi bi-box-seam"></i> Despensa</a>
-                    </div>
-                </div>
-
-                <!-- CÓDIGO DO MODAL (Fica FORA da caixa do item, mas dentro do laço FOR) -->
-                <div class="modal fade" id="modalExcluir{{ local.id }}" tabindex="-1" aria-labelledby="modalLabel{{ local.id }}" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                        <div class="modal-content border-0 shadow">
-                            <div class="modal-header bg-danger text-white">
-                                <h5 class="modal-title" id="modalLabel{{ local.id }}">
-                                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Confirmar Exclusão
-                                </h5>
-                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                            </div>
-                            <div class="modal-body text-start text-wrap">
-                                Tem certeza de que deseja apagar o local <strong>{{ local.nome }}</strong>?<br><br>
-                                <span class="text-danger small">
-                                    <strong>Atenção:</strong> Todos os itens da despensa e da lista de compras deste local também serão apagados permanentemente.
-                                </span>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                <form action="{{ url_for('eliminar_local', local_id=local.id) }}" method="POST" class="m-0">
-                                    <button type="submit" class="btn btn-danger">Sim, Excluir</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            {% else %}
-                <div class="alert alert-info text-center mt-2">Você ainda não tem nenhum local cadastrado.</div>
-            {% endfor %}
+        <div class="d-flex flex-wrap gap-2">
+            <a href="{{ url_for('ver_lista', local_id=local.id) }}" class="btn btn-warning fw-semibold flex-fill">
+                <i class="bi bi-cart me-1" aria-hidden="true"></i> Lista de compras
+            </a>
+            <a href="{{ url_for('ver_despensa', local_id=local.id) }}" class="btn btn-primary fw-semibold flex-fill">
+                <i class="bi bi-box-seam me-1" aria-hidden="true"></i> Despensa
+            </a>
         </div>
+    </div>
+    {% else %}
+    <div class="list-group-item">
+        {{ ui.vazio('bi-houses', 'Nenhum local cadastrado', 'Adicione a sua primeira casa para começar a organizar a despensa.') }}
+    </div>
+    {% endfor %}
+</div>
 
+<!-- Modais de exclusão (fora da lista, para não interferir com o layout) -->
+{% for local in locais %}
+<div class="modal fade" id="modalExcluirLocal{{ local.id }}" tabindex="-1"
+     aria-labelledby="tituloExcluirLocal{{ local.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h2 class="modal-title fs-5" id="tituloExcluirLocal{{ local.id }}">
+                    <i class="bi bi-exclamation-triangle-fill me-2" aria-hidden="true"></i>Confirmar exclusão
+                </h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                Tem certeza de que deseja apagar o local <strong>{{ local.nome }}</strong>?
+                <p class="mb-0 mt-3 text-danger-emphasis small">
+                    <strong>Atenção:</strong> todos os itens da despensa e da lista de compras deste local também serão apagados permanentemente.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('eliminar_local', local_id=local.id) }}" method="POST" class="m-0">
+                    <button type="submit" class="btn btn-danger">Sim, excluir</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
+{% endfor %}
 {% endblock %}

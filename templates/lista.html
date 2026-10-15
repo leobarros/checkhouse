@@ -1,125 +1,170 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
+
+{% block titulo %}Lista de compras · {{ local.nome }} · CheckHouse{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-md-8 offset-md-2">
-        
-        <div class="d-flex align-items-center justify-content-between mb-3">
-            <div class="d-flex align-items-center">
-                <a href="/" class="btn btn-outline-secondary btn-sm me-3"><i class="bi bi-arrow-left"></i> Voltar</a>
-                <h3 class="m-0 text-warning"><i class="bi bi-cart"></i> Lista: <span class="text-dark">{{ local.nome }}</span></h3>
-            </div>
-            
-            <!-- NOVO BOTÃO: Aciona o Modal de Limpar Comprados -->
-            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#modalLimparLista">
-                <i class="bi bi-trash"></i> Limpar Comprados
-            </button>
-        </div>
-
-        <div class="card shadow-sm mb-4 border-0">
-            <div class="card-body bg-light rounded">
-            <form action="/adicionar_lista/{{ local.id }}" method="POST" class="d-flex gap-2">
-                <input type="text" name="nome" class="form-control" list="historicoNomes" placeholder="O que falta comprar?" required autofocus autocomplete="off">
-                <datalist id="historicoNomes">
-                    {% for sugestao in sugestoes %}
-                        <option value="{{ sugestao }}"></option>
-                    {% endfor %}
-                </datalist>
-                
-                <input type="number" name="quantidade" class="form-control" style="width: 80px;" value="1" min="1" required>
-                <button type="submit" class="btn btn-warning fw-bold text-dark"><i class="bi bi-plus-lg"></i></button>
-            </form>
-            </div>
-        </div>
-
-        <div class="list-group shadow-sm">
-            {% for item in itens %}
-                <div class="list-group-item d-flex justify-content-between align-items-center p-3 {% if item.comprado %}bg-light text-muted{% endif %}">
-                    <div class="d-flex align-items-center gap-3">
-                        <form action="{{ url_for('toggle_compra', item_id=item.id) }}" method="POST" class="m-0">
-                            <button type="submit" class="btn btn-link p-0 text-decoration-none {% if item.comprado %}text-success{% else %}text-secondary{% endif %}">
-                                {% if item.comprado %}
-                                    <i class="bi bi-check-circle-fill fs-4"></i>
-                                {% else %}
-                                    <i class="bi bi-circle fs-4"></i>
-                                {% endif %}
-                            </button>
-                        </form>
-                        <div>
-                            <span class="fs-5 d-block {% if item.comprado %}text-decoration-line-through{% endif %}">{{ item.nome }}</span>
-                            <small class="text-secondary" style="font-size: 0.75rem;"><i class="bi bi-calendar3"></i> {{ item.data_criacao.strftime('%d/%m/%Y %H:%M') }}</small>
-                        </div>
-                    </div>
-
-                    <div class="d-flex align-items-center gap-3">
-                        <div class="d-flex align-items-center">
-                            {% if not item.comprado %}
-                                <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='menos') }}" method="POST" class="m-0">
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary px-2 py-0"><i class="bi bi-dash"></i></button>
-                                </form>
-                                <span class="mx-2 fw-bold fs-5">{{ item.quantidade }}</span>
-                                <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='mais') }}" method="POST" class="m-0">
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary px-2 py-0"><i class="bi bi-plus"></i></button>
-                                </form>
-                            {% else %}
-                                <span class="badge bg-secondary rounded-pill fs-6">{{ item.quantidade }}</span>
-                            {% endif %}
-                        </div>
-
-                        <!-- NOVO BOTÃO: Aciona o Modal do Item -->
-                        <button type="button" class="btn btn-link text-danger p-0" data-bs-toggle="modal" data-bs-target="#modalExcluirItem{{ item.id }}">
-                            <i class="bi bi-trash3"></i>
-                        </button>
-                    </div>
-                </div>
-            {% else %}
-                <div class="alert alert-success text-center m-0 border-0 text-secondary bg-light py-4">
-                    <i class="bi bi-emoji-smile fs-3 d-block mb-2 text-success"></i>
-                    Sua lista está vazia. Tudo abastecido!
-                </div>
-            {% endfor %}
-        </div>
-
+<div class="cabecalho-pagina">
+    <div class="d-flex align-items-center gap-2 min-w-0">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+           aria-label="Voltar para os meus locais" title="Voltar">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        </a>
+        <h1>
+            <i class="bi bi-cart text-warning-emphasis" aria-hidden="true"></i>
+            <span class="ch-titulo-texto">Lista: {{ local.nome }}</span>
+        </h1>
     </div>
+
+    {% if itens | selectattr('comprado') | list %}
+    <div class="ch-acoes">
+        <button type="button" class="btn btn-danger btn-sm fw-semibold"
+                data-bs-toggle="modal" data-bs-target="#modalLimparLista">
+            <i class="bi bi-trash3 me-1" aria-hidden="true"></i> Limpar comprados
+        </button>
+    </div>
+    {% endif %}
 </div>
 
-<!-- MODAL: Limpar Comprados -->
-<div class="modal fade" id="modalLimparLista" tabindex="-1" aria-hidden="true">
+<!-- Adicionar item -->
+<div class="ch-form-card mb-4">
+    <form action="{{ url_for('adicionar_lista', local_id=local.id) }}" method="POST">
+        <div class="ch-form-linha">
+            <div class="ch-campo-principal">
+                <label class="visually-hidden" for="novoItem">O que falta comprar</label>
+                <input type="text" id="novoItem" name="nome" class="form-control"
+                       list="historicoNomes" placeholder="O que falta comprar?" maxlength="100"
+                       autocomplete="off" required data-autofocus>
+            </div>
+            <div class="ch-campo-qtd">
+                <label class="visually-hidden" for="qtdItem">Quantidade</label>
+                <input type="number" id="qtdItem" name="quantidade" class="form-control"
+                       value="1" min="1" step="1" inputmode="numeric" required>
+            </div>
+            <div class="ch-campo-acao">
+                <button type="submit" class="btn btn-primary w-100" aria-label="Adicionar item à lista">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <datalist id="historicoNomes">
+        {% for sugestao in sugestoes %}
+        <option value="{{ sugestao }}"></option>
+        {% endfor %}
+    </datalist>
+</div>
+
+<!-- Itens da lista -->
+<div class="list-group shadow-sm">
+    {% for item in itens %}
+    <div class="list-group-item p-3 {% if item.comprado %}ch-item-concluido{% endif %}">
+        <div class="ch-item">
+            <div class="ch-item-principal">
+                <form action="{{ url_for('toggle_compra', item_id=item.id) }}" method="POST" class="m-0">
+                    <button type="submit"
+                            class="btn-icone btn-link {% if item.comprado %}text-success-emphasis{% else %}text-secondary{% endif %}"
+                            aria-label="{% if item.comprado %}Desmarcar {{ item.nome }} como comprado{% else %}Marcar {{ item.nome }} como comprado{% endif %}"
+                            title="{% if item.comprado %}Desmarcar como comprado{% else %}Marcar como comprado{% endif %}">
+                        <i class="bi {% if item.comprado %}bi-check-circle-fill{% else %}bi-circle{% endif %} fs-4" aria-hidden="true"></i>
+                    </button>
+                </form>
+
+                <span class="ch-item-info">
+                    <span class="ch-item-nome">{{ item.nome }}</span>
+                    <span class="ch-item-meta">
+                        <i class="bi bi-calendar3 me-1" aria-hidden="true"></i>{{ item.data_criacao.strftime('%d/%m/%Y às %H:%M') }}
+                    </span>
+                </span>
+            </div>
+
+            <div class="ch-item-acoes">
+                {% if item.comprado %}
+                <span class="badge text-bg-secondary rounded-pill ch-num" title="Quantidade comprada">{{ item.quantidade }}</span>
+                {% else %}
+                <div class="controle-qtd">
+                    <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='menos') }}" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                aria-label="Diminuir quantidade de {{ item.nome }}" title="Diminuir">
+                            <i class="bi bi-dash" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                    {{ ui.qtd(item.quantidade) }}
+                    <form action="{{ url_for('atualizar_lista_qtd', item_id=item.id, acao='mais') }}" method="POST" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                aria-label="Aumentar quantidade de {{ item.nome }}" title="Aumentar">
+                            <i class="bi bi-plus" aria-hidden="true"></i>
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+
+                <button type="button" class="btn-icone btn-link text-danger-emphasis"
+                        data-bs-toggle="modal" data-bs-target="#modalExcluirItem{{ item.id }}"
+                        aria-label="Remover {{ item.nome }} da lista" title="Remover item">
+                    <i class="bi bi-trash3" aria-hidden="true"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="list-group-item">
+        {{ ui.vazio('bi-emoji-smile', 'Sua lista está vazia', 'Tudo abastecido! Adicione um item acima quando faltar algo.') }}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Modal: limpar itens comprados -->
+{% if itens | selectattr('comprado') | list %}
+<div class="modal fade" id="modalLimparLista" tabindex="-1" aria-labelledby="tituloLimparLista" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-trash me-2"></i> Limpar Comprados</h5>
+                <h2 class="modal-title fs-5" id="tituloLimparLista">
+                    <i class="bi bi-trash3 me-2" aria-hidden="true"></i>Limpar comprados
+                </h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body text-start">
-                Tem certeza que deseja apagar todos os itens já marcados como comprados nesta lista?
+            <div class="modal-body">
+                Tem certeza de que deseja apagar todos os itens já marcados como comprados nesta lista?
+                Os produtos já foram somados à despensa, por isso nada se perde.
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <form action="{{ url_for('limpar_lista', local_id=local.id) }}" method="POST" class="m-0">
-                    <button type="submit" class="btn btn-danger">Sim, Limpar</button>
+                    <button type="submit" class="btn btn-danger">Sim, limpar</button>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endif %}
 
-<!-- MODAIS: Excluir Item Individual -->
+<!-- Modais: remover item -->
 {% for item in itens %}
-<div class="modal fade" id="modalExcluirItem{{ item.id }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="modalExcluirItem{{ item.id }}" tabindex="-1"
+     aria-labelledby="tituloExcluirItem{{ item.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="bi bi-trash3 me-2"></i> Confirmar Exclusão</h5>
+                <h2 class="modal-title fs-5" id="tituloExcluirItem{{ item.id }}">
+                    <i class="bi bi-trash3 me-2" aria-hidden="true"></i>Confirmar exclusão
+                </h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body text-start">
-                Tem certeza que deseja remover o item <strong>{{ item.nome }}</strong> da lista de compras?
+            <div class="modal-body">
+                Tem certeza de que deseja remover o item <strong>{{ item.nome }}</strong> da lista de compras?
+                {% if item.comprado %}
+                <p class="mb-0 mt-3 small text-body-secondary">
+                    Este item já foi somado à despensa; remover da lista não altera o stock.
+                </p>
+                {% endif %}
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <form action="{{ url_for('excluir_item_lista', item_id=item.id) }}" method="POST" class="m-0">
-                    <button type="submit" class="btn btn-danger">Sim, Remover</button>
+                    <button type="submit" class="btn btn-danger">Sim, remover</button>
                 </form>
             </div>
         </div>

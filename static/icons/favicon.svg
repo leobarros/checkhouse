@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CheckHouse">
+  <style>
+    /* O ícone adapta-se ao tema do navegador (barra de abas clara ou escura),
+       em vez do emoji 🏠 que muda de desenho em cada sistema operativo. */
+    .fundo { fill: #0d6efd; }
+    .traco { stroke: #ffffff; }
+
+    @media (prefers-color-scheme: dark) {
+      .fundo { fill: #6ea8fe; }
+      .traco { stroke: #052c65; }
+    }
+  </style>
+
+  <rect class="fundo" width="64" height="64" rx="14"/>
+
+  <g class="traco" fill="none" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 32 32 16l20 16"/>
+    <path d="M18 30v20h28V30"/>
+    <path d="M28 50V38h8v12"/>
+  </g>
+</svg>

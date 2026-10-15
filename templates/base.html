@@ -1,67 +1,88 @@
 <!DOCTYPE html>
-<html lang="pt-br" data-bs-theme="light">
+<html lang="pt-BR" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CheckHouse</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏠</text></svg>">
-    <!-- Link para o Bootstrap 5 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Link para os Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Faz com que controlos nativos (scrollbars, inputs, date pickers) sigam o tema -->
+    <meta name="color-scheme" content="light dark">
+    <meta id="metaCorTema" name="theme-color" content="#0d6efd">
+    <meta name="description" content="CheckHouse — despensa e listas de compras organizadas por casa.">
+    <title>{% block titulo %}CheckHouse{% endblock %}</title>
+
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
+
+    <!-- Script de arranque do tema: tem de correr ANTES do CSS para o modo escuro
+         não aparecer como um flash branco em cada navegação. -->
+    <script>
+        (function () {
+            try {
+                var preferencia = window.localStorage.getItem('temaCheckHouse');
+                if (preferencia !== 'light' && preferencia !== 'dark') {
+                    preferencia = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-bs-theme', preferencia);
+            } catch (e) {
+                /* localStorage indisponível: mantém o tema claro por omissão */
+            }
+        })();
+    </script>
+
+    <!-- Dependências servidas localmente (funciona sem internet na Home Lab);
+         o script no fim da página injeta o CDN apenas se estes ficheiros faltarem. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body class="d-flex flex-column min-vh-100 bg-body">
-<!-- Barra de Navegação com Menu Hambúrguer -->
-<!-- Barra de Navegação no topo -->
-    <nav class="navbar navbar-dark bg-primary mb-4 shadow-sm">
-        <div class="container d-flex justify-content-between align-items-center">
-            <a class="navbar-brand" href="/">🏠 CheckHouse</a>
-            
+
+    <a class="ch-skip btn btn-primary btn-sm shadow" href="#conteudo">Ir para o conteúdo</a>
+
+    <!-- Barra de navegação: o menu é o mesmo em desktop e mobile, para que a
+         localização dos comandos não mude conforme o ecrã. -->
+    <nav class="navbar ch-navbar sticky-top mb-4 shadow-sm">
+        <div class="container">
+            <a class="navbar-brand ch-marca fw-semibold" href="{% if current_user.is_authenticated %}{{ url_for('index') }}{% else %}{{ url_for('login') }}{% endif %}">
+                <span class="ch-marca-icone" aria-hidden="true"><i class="bi bi-house-door-fill"></i></span>
+                <span>CheckHouse</span>
+            </a>
+
             {% if current_user.is_authenticated %}
-            <!-- Menu Hamburger (Só aparece se estiver logado) -->
             <div class="dropdown">
-                <!-- Ícone do Hamburger -->
-                <button class="btn btn-primary border-0 p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="bi bi-list" style="font-size: 2rem;"></i>
+                <button class="ch-menu-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Abrir menu">
+                    <i class="bi bi-list" aria-hidden="true"></i>
                 </button>
-                
-                <!-- Conteúdo do Menu (Dropdown) -->
-                <ul class="dropdown-menu dropdown-menu-end shadow-lg p-3 rounded-4 border-0" style="min-width: 280px; margin-top: 10px;">
-                    
-                    <!-- Avatar e Saudação (Fiel ao desenho) -->
-                    <li class="d-flex align-items-center mb-3 px-2">
-                        <!-- Gera um círculo com a primeira letra do utilizador maiúscula -->
-                        <div class="bg-primary text-white rounded-circle d-flex justify-content-center align-items-center me-3 shadow-sm" style="width: 50px; height: 50px; font-size: 1.5rem; font-weight: bold;">
-                            {{ current_user.username[0] | upper }}
-                        </div>
-                        <span class="fs-5 fw-bold text-body">Olá, {{ current_user.username | capitalize }}</span>
+
+                <ul class="dropdown-menu dropdown-menu-end shadow-lg ch-menu-dropdown">
+                    <li class="d-flex align-items-center gap-3 px-2 pb-3">
+                        <span class="ch-avatar" aria-hidden="true">{{ current_user.username[0] | upper }}</span>
+                        <span class="flex-grow-1 min-w-0">
+                            <span class="d-block small text-body-secondary">Sessão iniciada</span>
+                            <span class="d-block fs-5 fw-semibold text-truncate">Olá, {{ current_user.username | capitalize }}</span>
+                        </span>
                     </li>
-                    
-                    <li><hr class="dropdown-divider mb-2"></li>
-                    
-                    <!-- Botão de Tema -->
+
+                    <li><hr class="dropdown-divider"></li>
+
                     <li>
-                        <button class="dropdown-item d-flex align-items-center py-2 rounded text-body" type="button" onclick="alternarTema()">
-                            <i class="bi bi-moon-stars fs-5 me-3 text-secondary"></i>
-                            <span class="fs-6 fw-medium">Mudar Tema</span>
+                        <button class="dropdown-item" type="button" data-tema-alternar>
+                            <i class="bi bi-moon-stars" data-tema-icone aria-hidden="true"></i>
+                            <span data-tema-rotulo>Modo escuro</span>
                         </button>
                     </li>
-                    
-                    <li><hr class="dropdown-divider my-2"></li>
-                    
-                    <!-- Configurações -->
+
                     <li>
-                        <a class="dropdown-item d-flex align-items-center py-2 rounded text-body" href="{{ url_for('configuracoes') }}">
-                            <i class="bi bi-gear fs-5 me-3 text-secondary"></i>
-                            <span class="fs-6 fw-medium">Configurações</span>
+                        <a class="dropdown-item" href="{{ url_for('configuracoes') }}">
+                            <i class="bi bi-gear" aria-hidden="true"></i>
+                            <span>Configurações</span>
                         </a>
                     </li>
-                    
-                    <li><hr class="dropdown-divider mt-2 mb-3"></li>
-                    
-                    <!-- Botão Sair (Alinhado à direita conforme desenho) -->
-                    <li class="text-end px-2">
-                        <a href="{{ url_for('logout') }}" class="btn btn-outline-dark px-4 rounded-3 fw-bold">Sair</a>
+
+                    <li><hr class="dropdown-divider"></li>
+
+                    <li>
+                        <a href="{{ url_for('logout') }}" class="btn btn-danger w-100 fw-semibold">
+                            <i class="bi bi-box-arrow-right me-1" aria-hidden="true"></i> Sair
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -69,13 +90,36 @@
         </div>
     </nav>
 
-    <!-- O conteúdo de cada página vai entrar aqui -->
-    <div class="container mb-5">
-        {% block content %}{% endblock %}
-    </div>
+    <main class="container mb-5 flex-grow-1" id="conteudo" tabindex="-1">
+        <!-- A largura é definida por página (block largura); os avisos usam a
+             mesma largura para o conteúdo ficar sempre alinhado. -->
+        <div class="{% block largura %}ch-conteudo{% endblock %}">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% set icones = {
+                        'success': 'bi-check-circle-fill',
+                        'danger': 'bi-exclamation-triangle-fill',
+                        'warning': 'bi-exclamation-circle-fill',
+                        'info': 'bi-info-circle-fill'
+                    } %}
+                    <div role="status" aria-live="polite">
+                        {% for categoria, mensagem in messages %}
+                            {% set tipo = categoria if categoria in icones else 'info' %}
+                            <div class="alert alert-{{ tipo }} alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                                <i class="bi {{ icones[tipo] }}" aria-hidden="true"></i>
+                                <div class="flex-grow-1">{{ mensagem }}</div>
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar aviso"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
 
-    <!-- Rodapé adaptável ao tema -->
-    <footer class="mt-auto py-3 bg-body-tertiary border-top shadow-sm">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <footer class="mt-auto py-3 bg-body-tertiary border-top">
         <div class="container text-center">
             <small class="text-body-secondary">
                 Desenvolvido por <strong>Leonardo Sales</strong> &copy; <span id="anoAtual"></span>
@@ -83,21 +127,37 @@
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script>
-        document.getElementById('anoAtual').textContent = new Date().getFullYear();
-        
-        // Gestão do Tema Claro/Escuro
-        const temaSalvo = localStorage.getItem('temaCheckHouse') || 'light';
-        document.documentElement.setAttribute('data-bs-theme', temaSalvo);
+        /* Rede de segurança: se os ficheiros locais não existirem (instalação
+           incompleta), recarrega Bootstrap e ícones a partir do CDN. */
+        (function () {
+            var sonda = document.createElement('div');
+            sonda.className = 'd-none';
+            sonda.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(sonda);
+            var cssLocal = window.getComputedStyle(sonda).display === 'none';
+            sonda.remove();
 
-        function alternarTema() {
-            const temaAtual = document.documentElement.getAttribute('data-bs-theme');
-            const novoTema = temaAtual === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-bs-theme', novoTema);
-            localStorage.setItem('temaCheckHouse', novoTema);
-        }
+            if (!cssLocal) {
+                [
+                    'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+                    'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css'
+                ].forEach(function (href) {
+                    var link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = href;
+                    document.head.appendChild(link);
+                });
+            }
+
+            if (typeof window.bootstrap === 'undefined') {
+                var script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
+                document.head.appendChild(script);
+            }
+        })();
     </script>
 </body>
 </html>
