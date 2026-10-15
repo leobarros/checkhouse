@@ -4,114 +4,152 @@
 {% block titulo %}Despensa · {{ local.nome }} · CheckHouse{% endblock %}
 
 {% block content %}
-<div class="cabecalho-pagina">
-    <div class="d-flex align-items-center gap-2 min-w-0">
-        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0"
-           aria-label="Voltar para os meus locais" title="Voltar">
-            <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        </a>
-        <h1>
-            <i class="bi bi-box-seam text-primary-emphasis" aria-hidden="true"></i>
-            <span class="ch-titulo-texto">Despensa: {{ local.nome }}</span>
-        </h1>
-    </div>
-
-    <div class="ch-acoes">
-        <a href="{{ url_for('ver_lista', local_id=local.id) }}" class="btn btn-warning btn-sm fw-semibold">
-            <i class="bi bi-cart me-1" aria-hidden="true"></i> Ver lista
-        </a>
-    </div>
-</div>
-
-<!-- Adicionar produto -->
-<div class="ch-form-card mb-4">
-    <form action="{{ url_for('adicionar_produto', local_id=local.id) }}" method="POST">
-        <div class="ch-form-linha">
-            <div class="ch-campo-principal">
-                <label class="visually-hidden" for="novoProduto">Nome do produto</label>
-                <input type="text" id="novoProduto" name="nome" class="form-control"
-                       list="historicoNomes" placeholder="Nome do produto (ex.: Arroz)" maxlength="100"
-                       autocomplete="off" required data-autofocus>
-            </div>
-            <div class="ch-campo-qtd">
-                <label class="visually-hidden" for="qtdProduto">Quantidade</label>
-                <input type="number" id="qtdProduto" name="quantidade" class="form-control"
-                       value="1" min="1" step="1" inputmode="numeric" required>
-            </div>
-            <div class="ch-campo-acao">
-                <button type="submit" class="btn btn-primary w-100" aria-label="Adicionar produto à despensa">
-                    <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                </button>
-            </div>
+<div data-despensa data-local="{{ local.id }}">
+    <div class="cabecalho-pagina">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm flex-shrink-0"
+               aria-label="Voltar para os meus locais" title="Voltar">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            </a>
+            <h1>
+                <i class="bi bi-box-seam text-primary-emphasis" aria-hidden="true"></i>
+                <span class="ch-titulo-texto">Despensa: {{ local.nome }}</span>
+            </h1>
         </div>
-    </form>
 
-    <datalist id="historicoNomes">
-        {% for sugestao in sugestoes %}
-        <option value="{{ sugestao }}"></option>
-        {% endfor %}
-    </datalist>
-</div>
+        <div class="ch-acoes">
+            <a href="{{ url_for('ver_lista', local_id=local.id) }}" class="btn btn-warning btn-sm fw-semibold">
+                <i class="bi bi-cart me-1" aria-hidden="true"></i> Ver lista
+            </a>
+        </div>
+    </div>
 
-<!-- Produtos: mesma estrutura de linha usada na lista de compras, para o
-     utilizador reconhecer os controlos em qualquer página e em qualquer ecrã. -->
-<div class="list-group shadow-sm">
-    {% for produto in produtos %}
-    <div class="list-group-item p-3">
-        <div class="ch-item">
-            <div class="ch-item-principal">
-                <i class="bi {% if produto.quantidade == 0 %}bi-exclamation-circle-fill text-danger-emphasis{% else %}bi-box-seam text-primary-emphasis{% endif %} fs-5"
-                   aria-hidden="true"></i>
-                <span class="ch-item-info">
-                    <span class="ch-item-nome fw-semibold" title="{{ produto.nome }}">{{ produto.nome }}</span>
-                    <span class="ch-item-meta">
-                        {% if produto.quantidade == 0 %}
-                        Em falta — foi adicionado à lista de compras
-                        {% else %}
-                        {{ produto.quantidade }} em stock
-                        {% endif %}
-                    </span>
-                </span>
+    <!-- Adicionar produto -->
+    <div class="ch-form-card mb-4">
+        <form action="{{ url_for('adicionar_produto', local_id=local.id) }}" method="POST"
+              data-acao-form="adicionar-produto" data-form-adicionar>
+            <div class="ch-form-linha">
+                <div class="ch-campo-principal">
+                    <label class="visually-hidden" for="novoProduto">Nome do produto</label>
+                    <input type="text" id="novoProduto" name="nome" class="form-control"
+                           list="historicoNomes" placeholder="Nome do produto (ex.: Arroz)" maxlength="100"
+                           autocomplete="off" required data-autofocus>
+                </div>
+                <div class="ch-campo-qtd">
+                    <label class="visually-hidden" for="qtdProduto">Quantidade</label>
+                    <input type="number" id="qtdProduto" name="quantidade" class="form-control"
+                           value="1" min="1" step="1" inputmode="numeric" required>
+                </div>
+                <div class="ch-campo-acao">
+                    <button type="submit" class="btn btn-primary w-100" aria-label="Adicionar produto à despensa">
+                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>
+        </form>
 
-            <div class="ch-item-acoes">
-                <div class="controle-qtd">
-                    <form action="{{ url_for('atualizar_qtd', produto_id=produto.id, acao='menos') }}" method="POST" class="m-0">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                {% if produto.quantidade == 0 %}disabled{% endif %}
-                                aria-label="Diminuir quantidade de {{ produto.nome }}" title="Diminuir">
-                            <i class="bi bi-dash" aria-hidden="true"></i>
-                        </button>
-                    </form>
-                    {{ ui.qtd(produto.quantidade, produto.quantidade == 0) }}
-                    <form action="{{ url_for('atualizar_qtd', produto_id=produto.id, acao='mais') }}" method="POST" class="m-0">
-                        <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                aria-label="Aumentar quantidade de {{ produto.nome }}" title="Aumentar">
-                            <i class="bi bi-plus" aria-hidden="true"></i>
-                        </button>
-                    </form>
+        <datalist id="historicoNomes">
+            {% for sugestao in sugestoes %}
+            <option value="{{ sugestao }}"></option>
+            {% endfor %}
+        </datalist>
+    </div>
+
+    <!-- Produtos: mesma estrutura de linha usada na lista de compras. -->
+    <div class="list-group shadow-sm" data-produtos>
+        {% for produto in produtos %}
+        <div class="list-group-item p-3"
+             data-produto data-id="{{ produto.id }}" data-uid=""
+             data-nome="{{ produto.nome }}" data-quantidade="{{ produto.quantidade }}">
+            <div class="ch-item">
+                <div class="ch-item-principal">
+                    <i data-icone-estado
+                       class="bi {% if produto.quantidade == 0 %}bi-exclamation-circle-fill text-danger-emphasis{% else %}bi-box-seam text-primary-emphasis{% endif %} fs-5"
+                       aria-hidden="true"></i>
+                    <span class="ch-item-info">
+                        <span class="ch-item-nome fw-semibold" title="{{ produto.nome }}">{{ produto.nome }}</span>
+                        <span class="ch-item-meta" data-meta-texto>
+                            {% if produto.quantidade == 0 %}Em falta — foi adicionado à lista de compras{% else %}{{ produto.quantidade }} em stock{% endif %}
+                        </span>
+                    </span>
                 </div>
 
-                <button type="button" class="btn-icone btn-link text-primary-emphasis"
-                        data-bs-toggle="modal" data-bs-target="#modalEditarProduto{{ produto.id }}"
-                        aria-label="Editar {{ produto.nome }}" title="Editar nome">
+                <div class="ch-item-acoes">
+                    <div class="controle-qtd" data-controle-qtd>
+                        <form action="{{ url_for('atualizar_qtd', produto_id=produto.id, acao='menos') }}" method="POST" class="m-0">
+                            <button type="submit" data-acao="qtd-menos" class="btn btn-sm btn-outline-secondary"
+                                    {% if produto.quantidade == 0 %}disabled{% endif %}
+                                    aria-label="Diminuir quantidade de {{ produto.nome }}" title="Diminuir">
+                                <i class="bi bi-dash" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                        {{ ui.qtd(produto.quantidade, produto.quantidade == 0) }}
+                        <form action="{{ url_for('atualizar_qtd', produto_id=produto.id, acao='mais') }}" method="POST" class="m-0">
+                            <button type="submit" data-acao="qtd-mais" class="btn btn-sm btn-outline-secondary"
+                                    aria-label="Aumentar quantidade de {{ produto.nome }}" title="Aumentar">
+                                <i class="bi bi-plus" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <button type="button" data-acao="editar" class="btn-icone btn-link text-primary-emphasis"
+                            data-bs-toggle="modal" data-bs-target="#modalEditarProduto{{ produto.id }}"
+                            aria-label="Editar {{ produto.nome }}" title="Editar nome">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    </button>
+
+                    <button type="button" data-acao="remover" class="btn-icone btn-link text-danger-emphasis"
+                            data-bs-toggle="modal" data-bs-target="#modalExcluirProduto{{ produto.id }}"
+                            aria-label="Excluir {{ produto.nome }} da despensa" title="Excluir produto">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="list-group-item" data-lista-vazia>
+            {{ ui.vazio('bi-inbox', 'A despensa está vazia', 'Adicione o primeiro produto no campo acima.') }}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modelo para linhas criadas pelo JavaScript -->
+<template id="modelo-produto">
+    <div class="list-group-item p-3" data-produto data-uid=""
+         data-nome="" data-quantidade="1">
+        <div class="ch-item">
+            <div class="ch-item-principal">
+                <i data-icone-estado class="bi bi-box-seam text-primary-emphasis fs-5" aria-hidden="true"></i>
+                <span class="ch-item-info">
+                    <span class="ch-item-nome fw-semibold"></span>
+                    <span class="ch-item-meta" data-meta-texto></span>
+                </span>
+            </div>
+            <div class="ch-item-acoes">
+                <div class="controle-qtd" data-controle-qtd>
+                    <button type="button" data-acao="qtd-menos" class="btn btn-sm btn-outline-secondary"
+                            aria-label="Diminuir" title="Diminuir">
+                        <i class="bi bi-dash" aria-hidden="true"></i>
+                    </button>
+                    <span class="valor">1</span>
+                    <button type="button" data-acao="qtd-mais" class="btn btn-sm btn-outline-secondary"
+                            aria-label="Aumentar" title="Aumentar">
+                        <i class="bi bi-plus" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <button type="button" data-acao="editar" class="btn-icone btn-link text-primary-emphasis"
+                        aria-label="Editar" title="Editar nome">
                     <i class="bi bi-pencil-square" aria-hidden="true"></i>
                 </button>
-
-                <button type="button" class="btn-icone btn-link text-danger-emphasis"
-                        data-bs-toggle="modal" data-bs-target="#modalExcluirProduto{{ produto.id }}"
-                        aria-label="Excluir {{ produto.nome }} da despensa" title="Excluir produto">
+                <button type="button" data-acao="remover" class="btn-icone btn-link text-danger-emphasis"
+                        aria-label="Excluir" title="Excluir produto">
                     <i class="bi bi-trash3" aria-hidden="true"></i>
                 </button>
             </div>
         </div>
     </div>
-    {% else %}
-    <div class="list-group-item">
-        {{ ui.vazio('bi-inbox', 'A despensa está vazia', 'Adicione o primeiro produto no campo acima.') }}
-    </div>
-    {% endfor %}
-</div>
+</template>
 
 <!-- Modais -->
 {% for produto in produtos %}
@@ -130,7 +168,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('eliminar_produto', produto_id=produto.id) }}" method="POST" class="m-0">
+                <form action="{{ url_for('eliminar_produto', produto_id=produto.id) }}" method="POST" class="m-0"
+                      data-acao-form="remover-produto" data-produto-id="{{ produto.id }}">
                     <button type="submit" class="btn btn-danger">Sim, remover</button>
                 </form>
             </div>
@@ -148,7 +187,8 @@
                 </h2>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <form action="{{ url_for('editar_produto', produto_id=produto.id) }}" method="POST">
+            <form action="{{ url_for('editar_produto', produto_id=produto.id) }}" method="POST"
+                  data-acao-form="editar-produto" data-produto-id="{{ produto.id }}">
                 <div class="modal-body">
                     <label for="nomeProduto{{ produto.id }}" class="form-label">Nome do produto</label>
                     <input type="text" class="form-control" id="nomeProduto{{ produto.id }}" name="nome"
@@ -163,4 +203,8 @@
     </div>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pagina-despensa.js', v=versao_assets) }}"></script>
 {% endblock %}

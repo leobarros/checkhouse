@@ -10,6 +10,12 @@
     <title>{% block titulo %}CheckHouse{% endblock %}</title>
 
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/favicon.svg') }}">
+    <!-- Instalação no ecrã principal do iPhone/iPad e do Android -->
+    <link rel="apple-touch-icon" href="{{ url_for('apple_touch_icon') }}">
+    <link rel="manifest" href="{{ url_for('manifest') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CheckHouse">
 
     <!-- Script de arranque do tema: tem de correr ANTES do CSS para o modo escuro
          não aparecer como um flash branco em cada navegação. -->
@@ -28,10 +34,11 @@
     </script>
 
     <!-- Dependências servidas localmente (funciona sem internet na Home Lab);
-         o script no fim da página injeta o CDN apenas se estes ficheiros faltarem. -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+         o script no fim da página injeta o CDN apenas se estes ficheiros faltarem.
+         O ?v= permite cache longo no telemóvel e invalidação quando algo muda. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css', v=versao_assets) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.css', v=versao_assets) }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css', v=versao_assets) }}">
 </head>
 <body class="d-flex flex-column min-vh-100 bg-body">
 
@@ -127,8 +134,13 @@
         </div>
     </footer>
 
-    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js', v=versao_assets) }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js', v=versao_assets) }}"></script>
+    <!-- Fila offline: existe em todas as páginas para o indicador de estado ser
+         o mesmo em qualquer ecrã (só a Lista e a Despensa enviam operações). -->
+    <script src="{{ url_for('static', filename='js/fila.js', v=versao_assets) }}"></script>
+    <script src="{{ url_for('static', filename='js/estado-fila.js', v=versao_assets) }}"></script>
+    {% block scripts %}{% endblock %}
     <script>
         /* Rede de segurança: se os ficheiros locais não existirem (instalação
            incompleta), recarrega Bootstrap e ícones a partir do CDN. */
@@ -157,6 +169,23 @@
                 script.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
                 document.head.appendChild(script);
             }
+        })();
+
+        /* Service Worker: cache da aplicação para abrir a lista sem rede.
+           Só é possível em contexto seguro (HTTPS ou localhost) — com o
+           Tailscale em HTTPS passa a funcionar automaticamente. */
+        (function () {
+            if (!('serviceWorker' in navigator) || !window.isSecureContext) return;
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js?v={{ versao_assets }}', { scope: '/', updateViaCache: 'none' })
+                    .catch(function () { /* sem cache offline: o resto continua a funcionar */ });
+            });
+            {% if not current_user.is_authenticated %}
+            /* Sessão terminada: nenhuma página privada deve ficar guardada. */
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ tipo: 'limpar' });
+            }
+            {% endif %}
         })();
     </script>
 </body>

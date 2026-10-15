@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#0d6efd">
+    <title>Sem ligação · CheckHouse</title>
+    <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
+    <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script>
+        (function () {
+            try {
+                var p = window.localStorage.getItem('temaCheckHouse');
+                if (p !== 'light' && p !== 'dark') {
+                    p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-bs-theme', p);
+            } catch (e) { /* tema claro por omissão */ }
+        })();
+    </script>
+</head>
+<body class="d-flex flex-column min-vh-100 bg-body">
+    <nav class="navbar ch-navbar mb-4">
+        <div class="container">
+            <span class="navbar-brand ch-marca fw-semibold">
+                <span class="ch-marca-icone" aria-hidden="true"><i class="bi bi-house-door-fill"></i></span>
+                <span>CheckHouse</span>
+            </span>
+        </div>
+    </nav>
+
+    <main class="container mb-5 flex-grow-1">
+        <div class="ch-conteudo">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center p-4">
+                    <div class="ch-vazio">
+                        <i class="bi bi-wifi-off" aria-hidden="true"></i>
+                        <span class="ch-vazio-titulo">Sem ligação à rede</span>
+                        <span>Não foi possível carregar esta página agora.</span>
+                    </div>
+                    <p class="text-body-secondary small mb-3">
+                        As alterações que fez no supermercado continuam guardadas no telemóvel e são
+                        enviadas automaticamente assim que houver rede.
+                    </p>
+                    <button type="button" class="btn btn-primary" onclick="window.location.reload()">
+                        <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Tentar novamente
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary ms-2">Ir para o início</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

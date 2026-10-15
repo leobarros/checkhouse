@@ -40,3 +40,25 @@ class ItemCompra(db.Model):
     comprado = db.Column(db.Boolean, default=False)
     data_criacao = db.Column(db.DateTime, default=datetime.now) # Nova coluna de data
     local_id = db.Column(db.Integer, db.ForeignKey('local.id'), nullable=False)
+
+
+class OperacaoCliente(db.Model):
+    """Registo de operações enviadas pelo telemóvel (fila offline).
+
+    O cliente gera um identificador único (uid) por operação e repete o envio
+    enquanto não tiver rede. Esta tabela guarda a resposta original de cada uid,
+    para que um reenvio devolva exatamente o mesmo resultado em vez de executar
+    a operação duas vezes (ex.: item duplicado, quantidade somada a dobrar).
+
+    É uma tabela nova, criada automaticamente pelo db.create_all(); não altera
+    nenhuma tabela existente.
+    """
+
+    __tablename__ = 'operacao_cliente'
+    id = db.Column(db.Integer, primary_key=True)
+    uid = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    tipo = db.Column(db.String(40), nullable=False)
+    recurso_id = db.Column(db.Integer)
+    resposta = db.Column(db.Text)           # JSON devolvido na primeira execução
+    status = db.Column(db.Integer, default=200)
+    criado_em = db.Column(db.DateTime, default=datetime.now, index=True)

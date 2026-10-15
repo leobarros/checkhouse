@@ -611,3 +611,114 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* 10. Fila offline (telemóvel) ============================================= */
+/* Barra única de estado, no fundo do ecrã, com o número de operações ainda
+   por sincronizar — o caso típico é a app usada no supermercado com rede má. */
+.ch-barra-fila {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 1085;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: min(30rem, calc(100vw - 1.5rem));
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  border-radius: var(--bs-border-radius-lg);
+  background-color: #212529;
+  color: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.35);
+  font-size: 0.9375rem;
+}
+
+[data-bs-theme="dark"] .ch-barra-fila {
+  background-color: var(--bs-tertiary-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+}
+
+.ch-barra-fila-texto {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ch-barra-fila-link {
+  color: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Variantes com especificidade igual à regra do tema escuro (a ordem decide). */
+.ch-barra-fila.ch-barra-fila--alerta {
+  background-color: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  border: 1px solid var(--bs-warning-border-subtle);
+}
+
+.ch-barra-fila.ch-barra-fila--ok {
+  background-color: var(--bs-success-bg-subtle);
+  color: var(--bs-success-text-emphasis);
+  border: 1px solid var(--bs-success-border-subtle);
+}
+
+[data-bs-theme="dark"] .ch-barra-fila--alerta,
+[data-bs-theme="dark"] .ch-barra-fila--ok {
+  border-color: var(--bs-border-color);
+}
+
+/* Avisos rápidos ("não foi possível adicionar…"), acima da barra. */
+.ch-avisos {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  z-index: 1090;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(30rem, calc(100vw - 1.5rem));
+  pointer-events: none;
+}
+
+.ch-aviso {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--bs-border-radius);
+  border-left: 4px solid var(--bs-secondary);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.22);
+  font-size: 0.9375rem;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.ch-aviso--erro {
+  border-left-color: var(--bs-danger);
+}
+
+.ch-aviso--sucesso {
+  border-left-color: var(--bs-success);
+}
+
+.ch-aviso--info {
+  border-left-color: var(--bs-primary);
+}
+
+.ch-aviso--saindo {
+  opacity: 0;
+  transform: translateY(0.5rem);
+}
+
+/* Linha criada no telemóvel e ainda não confirmada pelo servidor. */
+[data-item][data-uid]:not([data-id]),
+[data-produto][data-uid]:not([data-id]) {
+  border-left: 3px solid var(--bs-warning);
+}
+
+@media (max-width: 575.98px) {
+  .ch-barra-fila {
+    font-size: 0.875rem;
+    padding: 0.5rem 0.5rem 0.5rem 0.85rem;
+  }
+}

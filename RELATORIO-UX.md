@@ -51,6 +51,8 @@ itens), `/lista/<id>` (com e sem itens), `/configuracoes`, `/compras/<id>`,
 | [`antes-depois-lista-vazia-escuro.png`](docs/ux/antes-depois-lista-vazia-escuro.png) | Estado vazio padronizado (lista sem itens) |
 | [`auditoria-claro-390px.png`](docs/ux/auditoria-claro-390px.png) · [`auditoria-escuro-390px.png`](docs/ux/auditoria-escuro-390px.png) · [`auditoria-escuro-320px.png`](docs/ux/auditoria-escuro-320px.png) · [`auditoria-claro-1024px.png`](docs/ux/auditoria-claro-1024px.png) | Saída da auditoria no browser por rota: scroll horizontal, alvos de toque, contraste, nomes acessíveis, fonte de ícones e pilha tipográfica |
 | [`favicon-modo-claro.png`](docs/ux/favicon-modo-claro.png) · [`favicon-modo-escuro.png`](docs/ux/favicon-modo-escuro.png) | Favicon SVG nos dois esquemas de cor do navegador |
+| [`fila-offline-modo-claro.png`](docs/ux/fila-offline-modo-claro.png) · [`fila-offline-modo-escuro.png`](docs/ux/fila-offline-modo-escuro.png) | Barra de estado da fila offline e avisos, nos dois temas |
+| [`lista-com-fila-offline.png`](docs/ux/lista-com-fila-offline.png) | Lista de compras no telemóvel já com a fila offline (linhas, alvos de toque e item concluído) |
 
 ---
 
@@ -261,13 +263,62 @@ Casos corrigidos por esta auditoria, medidos no estado anterior:
 | `templates/login.html` | HTML corrigido, marca em ícone, rótulos, autocomplete |
 | `templates/registrar.html` | marca em ícone, rótulos, dica de senha |
 | `templates/compras.html` | modo escuro corrigido, ícones e estado vazio consistentes |
+| `static/js/fila.js` | **novo** — fila offline durável (com junção de operações, novas tentativas e idempotência) |
+| `static/js/estado-fila.js` | **novo** — barra de estado da fila e avisos rápidos |
+| `static/js/pagina-lista.js` | **novo** — Lista com atualização imediata da interface |
+| `static/js/pagina-despensa.js` | **novo** — Despensa com atualização imediata da interface |
+| `static/sw.js`, `static/offline.html`, `static/manifest.webmanifest`, `static/icons/*.png` | **novos** — Service Worker, página sem ligação, instalação no ecrã principal |
+| `templates/base.html`, `lista.html`, `despensa.html` | ganchos para a fila offline, indicador de estado, assets com versão |
+| `app.py` | **alterado nesta 2.ª intervenção** — API JSON, idempotência, `401` em JSON, `/sw.js`, manifest, cache dos assets |
+| `models.py` | **alterado nesta 2.ª intervenção** — tabela nova `operacao_cliente` (criada pelo `db.create_all()`, sem alterar tabelas existentes) |
 
-`app.py`, `models.py` e a base de dados **não foram alterados** — esta
-intervenção é apenas de interface, para não mexer na lógica nem nos dados.
+A primeira intervenção não tocou em `app.py`/`models.py`; a segunda (fila
+offline, pedida depois) acrescentou a API JSON e a tabela de idempotência. Os
+dados existentes não são alterados: `db.create_all()` apenas cria a tabela nova.
 
 ---
 
-## 9. Como revalidar
+## 9. Fila offline no telemóvel (2.ª intervenção)
+
+Depois de usar a app no supermercado com rede fraca, ficou claro que a demora
+não era só da rede: cada toque fazia `POST` + redirect + download da página
+inteira (duas idas ao servidor por toque) e a interface só reagia no fim.
+
+Foi acrescentada uma **fila offline** com atualização imediata da interface:
+
+- ações da **Lista** e da **Despensa** passam por uma API JSON (~1 KB em vez de
+  ~30 KB por página);
+- a operação é guardada no telemóvel e enviada quando há rede (agora, ao voltar
+  a rede, ao trazer a app para a frente, ao abrir, ou no botão *Sincronizar*);
+- **reenvios seguros**: identificador único por operação + tabela
+  `operacao_cliente`, para nunca duplicar um item nem somar a quantidade duas
+  vezes; `comprado` e `quantidade` são enviados como estado desejado (não como
+  inversão/incremento);
+- **barra de estado** única em todas as páginas (`3 por sincronizar`,
+  `Sem rede · 3 guardada(s)`, `Tudo sincronizado`, `Sessão expirada · …`);
+- **Service Worker** (só em HTTPS) para abrir a Lista/Despensa sem rede, com
+  manifest e ícones para instalar no ecrã principal do iPhone;
+- sem JavaScript nada muda: os formulários POST continuam a funcionar.
+
+Detalhes, limites do iOS e como ativar o HTTPS com Tailscale:
+[`docs/FILA-OFFLINE.md`](docs/FILA-OFFLINE.md).
+
+Como o acesso no iPhone é feito por `http://<IP do Tailscale>:5000` (sem HTTPS,
+onde não existe Service Worker), as páginas da Lista e da Despensa passaram
+também a ser devolvidas com `Cache-Control: private, max-age=3600,
+stale-while-revalidate, stale-if-error` + `Vary: Cookie`. É isso que permite
+**abrir a lista sem rede** mesmo sem Service Worker, com a reconciliação no
+arranque a corrigir os dados assim que houver ligação (ver
+[`docs/ux/lista-sem-rede-http.png`](docs/ux/lista-sem-rede-http.png)).
+
+Verificação: 33 testes da API (idempotência, dono, regras da despensa),
+36 testes da fila (sem rede, erros, junção de operações, persistência) e
+33 testes de página em DOM real (item aparece na hora, sincronização ao voltar
+a rede e reconciliação).
+
+---
+
+## 10. Como revalidar
 
 1. Abrir a aplicação e alternar o tema em **Configurações → Aparência**
    (Claro/Escuro/Sistema) e pelo menu hambúrguer.
@@ -282,7 +333,7 @@ intervenção é apenas de interface, para não mexer na lógica nem nos dados.
 
 ---
 
-## 10. Limitações e sugestões
+## 11. Limitações e sugestões
 
 - **Ferramenta de captura:** o `firefox --headless --screenshot` não pinta
   alterações de estilo feitas por JavaScript após a carga. O estado *ativo* do
@@ -293,9 +344,7 @@ intervenção é apenas de interface, para não mexer na lógica nem nos dados.
   `POST /atualizar_qtd` e `GET /compras/<id>` (ver `RELATORIO-SEGURANCA.md`).
 - **Sugestões para uma próxima iteração:**
   - mensagem de confirmação ("Produto adicionado", "Item removido") após cada
-    ação, hoje silenciosa;
-  - `manifest.json` + ícones PNG para instalar como app no telemóvel (PWA, citado
-    em `requisitos.md`);
+    ação, hoje silenciosa — a barra da fila já dá o estado geral;
   - pesquisa/filtro por produto em despensas grandes;
   - datas de validade e painel de vencimentos (previsto em `requisitos.md`).
 

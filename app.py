@@ -1,9 +1,11 @@
 import os
 import json
-from flask import Flask, render_template, request, redirect, url_for, flash, Response, send_file
+from datetime import datetime, timedelta
+from flask import (Flask, render_template, request, redirect, url_for, flash, Response,
+                   send_file, send_from_directory, jsonify, make_response)
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Local, Produto, ItemCompra, Usuario
+from models import db, Local, Produto, ItemCompra, Usuario, OperacaoCliente
 
 
 app = Flask(__name__)
@@ -20,6 +22,37 @@ CAMINHO_BANCO = os.path.join(PASTA_DADOS, 'checkouse.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{CAMINHO_BANCO}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Assets estáticos (CSS/JS/ícones) podem ser guardados em cache pelo navegador
+# do telemóvel: sem isto o Safari revalida ~700 KB em cada navegação. As URLs
+# levam ?v=<versao>, calculada a partir do conteúdo dos ficheiros do projeto,
+# por isso uma alteração invalida o cache automaticamente (sem passos manuais).
+def _calcular_versao_assets():
+    import hashlib
+
+    ficheiros = [
+        'css/app.css',
+        'js/app.js',
+        'js/fila.js',
+        'js/estado-fila.js',
+        'js/pagina-lista.js',
+        'js/pagina-despensa.js',
+    ]
+    resumo = hashlib.sha256()
+    for relativo in ficheiros:
+        caminho = os.path.join(BASE_DIR, 'static', relativo)
+        try:
+            with open(caminho, 'rb') as fh:
+                resumo.update(fh.read())
+        except OSError:
+            resumo.update(relativo.encode())
+    return resumo.hexdigest()[:10]
+
+
+VERSAO_ASSETS = os.environ.get('CH_VERSAO_ASSETS') or _calcular_versao_assets()
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = int(os.environ.get('CH_CACHE_ASSETS', 60 * 60 * 24 * 30))
+# A fila offline nunca deve ficar presa a uma resposta antiga guardada em cache.
+app.config['JSON_SORT_KEYS'] = False
+
 # conecta o banco de dados ao nosso app flask
 db.init_app(app)
 
@@ -34,12 +67,37 @@ login_manager.login_message_category = "warning"
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
 
+
+@login_manager.unauthorized_handler
+def usuario_nao_autenticado():
+    """A fila offline precisa de saber a diferença entre "sem rede" e "sessão
+    expirada". Para as rotas /api/ devolvemos 401 em JSON (o cliente mantém as
+    operações guardadas); nas páginas normais mantém-se o redirect para login."""
+    if request.path.startswith('/api/'):
+        return jsonify({'erro': 'sessao_expirada'}), 401
+    flash(login_manager.login_message, login_manager.login_message_category)
+    return redirect(url_for('login', next=request.full_path if request.query_string else request.path))
+
+
+@app.context_processor
+def injetar_versao_assets():
+    return {'versao_assets': VERSAO_ASSETS}
+
+
 with app.app_context():
     db.create_all()
 
 # antes da primeira requisição, cria as tabelas no banco de dados se não existirem
 with app.app_context():
     db.create_all()
+    # Limpeza do registo de idempotência: passados alguns dias já não há filas
+    # antigas para reenviar (o telemóvel sincroniza muito antes disto).
+    try:
+        limite = datetime.now() - timedelta(days=7)
+        OperacaoCliente.query.filter(OperacaoCliente.criado_em < limite).delete()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -116,7 +174,7 @@ def ver_despensa(local_id):
     itens = ItemCompra.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
     
-    return render_template('despensa.html', local=local, produtos=produtos, sugestoes=sugestoes)
+    return _pagina_cacheavel(render_template('despensa.html', local=local, produtos=produtos, sugestoes=sugestoes))
 
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
 @login_required
@@ -215,7 +273,7 @@ def ver_lista(local_id):
     produtos = Produto.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
     
-    return render_template('lista.html', local=local, itens=itens, sugestoes=sugestoes)
+    return _pagina_cacheavel(render_template('lista.html', local=local, itens=itens, sugestoes=sugestoes))
 
 # Rota para adicionar item na lista
 @app.route('/adicionar_lista/<int:local_id>', methods=['POST'])
@@ -387,6 +445,422 @@ def excluir_conta():
     db.session.commit()
     logout_user()
     return redirect(url_for('login'))
+
+# ===========================================================================
+# API JSON para a fila offline (telemóvel)
+#
+# Porquê: cada ação no supermercado fazia POST + redirect + download da página
+# inteira (2 idas ao servidor, ~30 KB). Estas rotas respondem em JSON (~1 KB) e
+# aceitam reenvios: o cabeçalho X-Idempotency-Key (ou o campo "uid" no corpo)
+# identifica a operação e a tabela operacao_cliente garante que uma repetição
+# devolve a mesma resposta, sem duplicar item nem somar quantidades duas vezes.
+# ===========================================================================
+
+LIMITE_TEXTO = 100
+
+# As páginas da Lista e da Despensa podem ser guardadas no cache do navegador:
+# é o que permite ao Safari abrir a lista sem rede em http://IP (onde não há
+# Service Worker, porque não é contexto seguro). A página pode chegar 5 minutos
+# "velha", mas o JavaScript volta a ler a lista no servidor quando há rede
+# (ver reconciliar() em static/js/pagina-*.js), por isso corrige-se sozinha.
+SEGUNDOS_CACHE_PAGINA = int(os.environ.get('CH_CACHE_PAGINA', 3600))
+
+
+def _pagina_cacheavel(resposta):
+    resposta = make_response(resposta)
+    resposta.headers['Cache-Control'] = (
+        'private, max-age={0}, stale-while-revalidate=604800, stale-if-error=604800'
+    ).format(SEGUNDOS_CACHE_PAGINA)
+    return resposta
+
+
+def _json_item(item):
+    return {
+        'id': item.id,
+        'nome': item.nome,
+        'quantidade': item.quantidade,
+        'comprado': bool(item.comprado),
+        'data_criacao': item.data_criacao.strftime('%d/%m/%Y às %H:%M') if item.data_criacao else '',
+        'local_id': item.local_id,
+    }
+
+
+def _json_produto(produto):
+    return {
+        'id': produto.id,
+        'nome': produto.nome,
+        'quantidade': produto.quantidade,
+        'local_id': produto.local_id,
+    }
+
+
+def _dados():
+    dados = request.get_json(silent=True)
+    return dados if isinstance(dados, dict) else {}
+
+
+def _uid():
+    """Identificador único da operação, gerado pelo cliente."""
+    bruto = request.headers.get('X-Idempotency-Key') or _dados().get('uid') or ''
+    return str(bruto).strip()[:64]
+
+
+def _repeticao(uid):
+    """Se este uid já foi processado, devolve a resposta guardada."""
+    if not uid:
+        return None
+    registo = OperacaoCliente.query.filter_by(uid=uid).first()
+    if not registo:
+        return None
+    corpo = json.loads(registo.resposta) if registo.resposta else {}
+    corpo['repetido'] = True
+    return jsonify(corpo), registo.status or 200
+
+
+def _registar_operacao(uid, tipo, recurso_id, corpo, status=200):
+    if not uid:
+        return
+    db.session.add(OperacaoCliente(
+        uid=uid,
+        tipo=tipo,
+        recurso_id=recurso_id,
+        resposta=json.dumps(corpo),
+        status=status,
+    ))
+
+
+def _local_do_usuario(local_id):
+    """Devolve o local apenas se pertencer ao utilizador autenticado."""
+    return Local.query.filter_by(id=local_id, usuario_id=current_user.id).first()
+
+
+def _texto(valor, limite=LIMITE_TEXTO):
+    return str(valor or '').strip()[:limite]
+
+
+def _quantidade(valor, minimo=1):
+    try:
+        numero = int(valor)
+    except (TypeError, ValueError):
+        return None
+    return max(minimo, numero)
+
+
+def _somar_a_despensa(item):
+    """Espelha o comportamento de /toggle_compra ao marcar como comprado."""
+    produto = Produto.query.filter(
+        Produto.nome.ilike(item.nome), Produto.local_id == item.local_id
+    ).first()
+    if produto:
+        produto.quantidade = produto.quantidade + item.quantidade
+    else:
+        produto = Produto(nome=item.nome, quantidade=item.quantidade, local_id=item.local_id)
+        db.session.add(produto)
+    return produto
+
+
+def _retirar_da_despensa(item):
+    """Espelha o comportamento de /toggle_compra ao desmarcar (comprado=False)."""
+    produto = Produto.query.filter(
+        Produto.nome.ilike(item.nome), Produto.local_id == item.local_id
+    ).first()
+    if produto:
+        produto.quantidade = max(0, produto.quantidade - item.quantidade)
+    return produto
+
+
+@app.route('/api/ping')
+@login_required
+def api_ping():
+    """Verificação leve de conectividade usada pelo indicador de estado."""
+    return jsonify({'ok': True, 'hora': datetime.now().isoformat(timespec='seconds')})
+
+
+@app.route('/api/locais/<int:local_id>/lista')
+@login_required
+def api_ver_lista(local_id):
+    local = _local_do_usuario(local_id)
+    if not local:
+        return jsonify({'erro': 'local_nao_encontrado'}), 404
+    itens = ItemCompra.query.filter_by(local_id=local.id).order_by(
+        ItemCompra.comprado, ItemCompra.nome
+    ).all()
+    resposta = jsonify({'local': {'id': local.id, 'nome': local.nome},
+                        'itens': [_json_item(i) for i in itens]})
+    resposta.headers['Cache-Control'] = 'no-store'
+    return resposta
+
+
+@app.route('/api/locais/<int:local_id>/lista/itens', methods=['POST'])
+@login_required
+def api_criar_item(local_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    local = _local_do_usuario(local_id)
+    if not local:
+        return jsonify({'erro': 'local_nao_encontrado'}), 404
+
+    dados = _dados()
+    nome = _texto(dados.get('nome'))
+    quantidade = _quantidade(dados.get('quantidade', 1))
+    if not nome or not quantidade:
+        return jsonify({'erro': 'dados_invalidos'}), 400
+
+    item = ItemCompra(nome=nome, quantidade=quantidade, local_id=local.id)
+    db.session.add(item)
+    db.session.flush()
+
+    corpo = {'item': _json_item(item)}
+    _registar_operacao(uid, 'item_criado', item.id, corpo, 201)
+    db.session.commit()
+    return jsonify(corpo), 201
+
+
+@app.route('/api/itens/<int:item_id>', methods=['PATCH'])
+@login_required
+def api_atualizar_item(item_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    item = ItemCompra.query.get(item_id)
+    if not item or item.local.usuario_id != current_user.id:
+        return jsonify({'erro': 'item_nao_encontrado'}), 404
+
+    dados = _dados()
+    alterou = False
+
+    # "comprado" é enviado como estado desejado (true/false), não como inversão:
+    # repetir o pedido não volta a marcar/desmarcar.
+    if 'comprado' in dados:
+        desejado = bool(dados.get('comprado'))
+        if desejado != bool(item.comprado):
+            if desejado:
+                item.comprado = True
+                _somar_a_despensa(item)
+            else:
+                item.comprado = False
+                _retirar_da_despensa(item)
+            alterou = True
+
+    if 'quantidade' in dados and not item.comprado:
+        quantidade = _quantidade(dados.get('quantidade', 1))
+        if not quantidade:
+            return jsonify({'erro': 'dados_invalidos'}), 400
+        if quantidade != item.quantidade:
+            item.quantidade = quantidade
+            alterou = True
+
+    if 'nome' in dados:
+        nome = _texto(dados.get('nome'))
+        if not nome:
+            return jsonify({'erro': 'dados_invalidos'}), 400
+        if nome != item.nome:
+            item.nome = nome
+            alterou = True
+
+    if alterou:
+        db.session.flush()
+
+    corpo = {'item': _json_item(item)}
+    _registar_operacao(uid, 'item_atualizado', item.id, corpo, 200)
+    db.session.commit()
+    return jsonify(corpo)
+
+
+@app.route('/api/itens/<int:item_id>', methods=['DELETE'])
+@login_required
+def api_remover_item(item_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    item = ItemCompra.query.get(item_id)
+    if not item:
+        # Já não existe (ex.: reenvio depois de removido): sucesso na mesma.
+        corpo = {'ok': True, 'ja_removido': True}
+        _registar_operacao(uid, 'item_removido', item_id, corpo, 200)
+        db.session.commit()
+        return jsonify(corpo)
+
+    if item.local.usuario_id != current_user.id:
+        return jsonify({'erro': 'item_nao_encontrado'}), 404
+
+    db.session.delete(item)
+    corpo = {'ok': True, 'id': item_id}
+    _registar_operacao(uid, 'item_removido', item_id, corpo, 200)
+    db.session.commit()
+    return jsonify(corpo)
+
+
+@app.route('/api/locais/<int:local_id>/lista/limpar', methods=['POST'])
+@login_required
+def api_limpar_lista(local_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    local = _local_do_usuario(local_id)
+    if not local:
+        return jsonify({'erro': 'local_nao_encontrado'}), 404
+
+    removidos = ItemCompra.query.filter_by(local_id=local.id, comprado=True).delete()
+    corpo = {'ok': True, 'removidos': removidos}
+    _registar_operacao(uid, 'lista_limpa', local.id, corpo, 200)
+    db.session.commit()
+    return jsonify(corpo)
+
+
+@app.route('/api/locais/<int:local_id>/despensa')
+@login_required
+def api_ver_despensa(local_id):
+    local = _local_do_usuario(local_id)
+    if not local:
+        return jsonify({'erro': 'local_nao_encontrado'}), 404
+    produtos = Produto.query.filter_by(local_id=local.id).order_by(Produto.nome).all()
+    resposta = jsonify({'local': {'id': local.id, 'nome': local.nome},
+                        'produtos': [_json_produto(p) for p in produtos]})
+    resposta.headers['Cache-Control'] = 'no-store'
+    return resposta
+
+
+@app.route('/api/locais/<int:local_id>/despensa/produtos', methods=['POST'])
+@login_required
+def api_criar_produto(local_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    local = _local_do_usuario(local_id)
+    if not local:
+        return jsonify({'erro': 'local_nao_encontrado'}), 404
+
+    dados = _dados()
+    nome = _texto(dados.get('nome'))
+    quantidade = _quantidade(dados.get('quantidade', 1))
+    if not nome or not quantidade:
+        return jsonify({'erro': 'dados_invalidos'}), 400
+
+    produto = Produto(nome=nome, quantidade=quantidade, local_id=local.id)
+    db.session.add(produto)
+    db.session.flush()
+
+    corpo = {'produto': _json_produto(produto)}
+    _registar_operacao(uid, 'produto_criado', produto.id, corpo, 201)
+    db.session.commit()
+    return jsonify(corpo), 201
+
+
+@app.route('/api/produtos/<int:produto_id>', methods=['PATCH'])
+@login_required
+def api_atualizar_produto(produto_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    produto = Produto.query.get(produto_id)
+    if not produto or produto.local.usuario_id != current_user.id:
+        return jsonify({'erro': 'produto_nao_encontrado'}), 404
+
+    dados = _dados()
+    alterou = False
+
+    if 'nome' in dados:
+        nome = _texto(dados.get('nome'))
+        if not nome:
+            return jsonify({'erro': 'dados_invalidos'}), 400
+        if nome != produto.nome:
+            produto.nome = nome
+            alterou = True
+
+    if 'quantidade' in dados:
+        quantidade = _quantidade(dados.get('quantidade', 0), minimo=0)
+        if quantidade is None:
+            return jsonify({'erro': 'dados_invalidos'}), 400
+        if quantidade != produto.quantidade:
+            anterior = produto.quantidade
+            produto.quantidade = quantidade
+            alterou = True
+            # Mesma regra de /atualizar_qtd: ao chegar a zero, o produto entra
+            # na lista de compras (se ainda não estiver lá).
+            if quantidade == 0 and anterior != 0:
+                existente = ItemCompra.query.filter(
+                    ItemCompra.nome.ilike(produto.nome),
+                    ItemCompra.local_id == produto.local_id,
+                    ItemCompra.comprado == False,  # noqa: E712 (comparação SQL)
+                ).first()
+                if not existente:
+                    db.session.add(ItemCompra(
+                        nome=produto.nome, quantidade=1, local_id=produto.local_id
+                    ))
+
+    if alterou:
+        db.session.flush()
+
+    corpo = {'produto': _json_produto(produto)}
+    _registar_operacao(uid, 'produto_atualizado', produto.id, corpo, 200)
+    db.session.commit()
+    return jsonify(corpo)
+
+
+@app.route('/api/produtos/<int:produto_id>', methods=['DELETE'])
+@login_required
+def api_remover_produto(produto_id):
+    uid = _uid()
+    repetido = _repeticao(uid)
+    if repetido:
+        return repetido
+
+    produto = Produto.query.get(produto_id)
+    if not produto:
+        corpo = {'ok': True, 'ja_removido': True}
+        _registar_operacao(uid, 'produto_removido', produto_id, corpo, 200)
+        db.session.commit()
+        return jsonify(corpo)
+
+    if produto.local.usuario_id != current_user.id:
+        return jsonify({'erro': 'produto_nao_encontrado'}), 404
+
+    db.session.delete(produto)
+    corpo = {'ok': True, 'id': produto_id}
+    _registar_operacao(uid, 'produto_removido', produto_id, corpo, 200)
+    db.session.commit()
+    return jsonify(corpo)
+
+
+# --- Ficheiros que precisam de viver na raiz do site -------------------------
+# O Service Worker só controla o âmbito de onde é servido; estando em /static/
+# ficaria limitado a /static/. O manifest e o ícone do iOS também são servidos
+# na raiz por conveniência.
+
+@app.route('/sw.js')
+def service_worker():
+    resposta = send_from_directory(app.static_folder, 'sw.js', mimetype='text/javascript')
+    resposta.headers['Cache-Control'] = 'no-cache'
+    resposta.headers['Service-Worker-Allowed'] = '/'
+    return resposta
+
+
+@app.route('/manifest.webmanifest')
+def manifest():
+    return send_from_directory(app.static_folder, 'manifest.webmanifest',
+                               mimetype='application/manifest+json')
+
+
+@app.route('/apple-touch-icon.png')
+@app.route('/apple-touch-icon-precomposed.png')
+def apple_touch_icon():
+    return send_from_directory(os.path.join(app.static_folder, 'icons'), 'apple-touch-icon.png',
+                               mimetype='image/png')
+
 
 # Sevidor local para desenvolvimento. Em produção, use um servidor WSGI como Gunicorn ou uWSGI.
 if __name__ == '__main__':
