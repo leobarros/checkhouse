@@ -246,17 +246,23 @@
     if (acao === 'adicionar-produto') {
       evento.preventDefault();
       adicionar();
-    } else if (acao === 'editar-produto' && elemento) {
-      evento.preventDefault();
+      return;
+    }
+    if (acao !== 'editar-produto' && acao !== 'remover-produto') return;
+
+    /* Ação tratada por JS: cancela sempre o envio nativo. Se a linha já não
+       existir (duplo toque ou outro separador), fecha o modal e não navega
+       para a rota antiga — que responderia 404 porque o produto já foi apagado. */
+    evento.preventDefault();
+    var dialogo = formulario.closest('.modal');
+    if (dialogo && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(dialogo).hide();
+    if (!elemento) return;
+
+    if (acao === 'editar-produto') {
       var campo = formulario.querySelector('input[name="nome"]');
       var novoNome = (campo.value || '').trim();
-      var dialogo = formulario.closest('.modal');
-      if (dialogo && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(dialogo).hide();
       if (novoNome && novoNome !== dadosLinha(elemento).nome) renomear(elemento, novoNome);
-    } else if (acao === 'remover-produto' && elemento) {
-      evento.preventDefault();
-      var modal = formulario.closest('.modal');
-      if (modal && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modal).hide();
+    } else {
       remover(elemento);
     }
   });

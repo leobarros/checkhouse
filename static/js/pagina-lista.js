@@ -17,6 +17,8 @@
   var modelo = document.getElementById('modelo-item-lista');
   var campoNome = raiz.querySelector('[data-form-adicionar] input[name="nome"]');
   var campoQtd = raiz.querySelector('[data-form-adicionar] input[name="quantidade"]');
+  var modalEditar = document.getElementById('modalEditarItem');
+  var itemEmEdicao = null;
   var ultimoItem = null;
 
   function urlItem(id) {
@@ -44,6 +46,7 @@
        :not([data-id]) para marcar a linha como "por sincronizar". */
     if (info.id) elemento.setAttribute('data-id', info.id);
     else elemento.removeAttribute('data-id');
+    elemento.setAttribute('data-nome', info.nome);
     elemento.setAttribute('data-quantidade', info.quantidade);
     elemento.setAttribute('data-comprado', info.comprado ? '1' : '0');
   }
@@ -68,6 +71,13 @@
 
     var botaoRemover = elemento.querySelector('[data-acao="remover"]');
     botaoRemover.setAttribute('aria-label', 'Remover ' + nome + ' da lista');
+    var botaoEditar = elemento.querySelector('[data-acao="editar"]');
+    if (botaoEditar) {
+      botaoEditar.setAttribute('aria-label', 'Editar ' + nome);
+      /* Renomear um item já comprado deixaria o stock com o nome antigo
+         (a baixa da despensa é feita pelo nome). Para editar, desmarca-se. */
+      botaoEditar.hidden = info.comprado;
+    }
     var botaoMenos = elemento.querySelector('[data-acao="qtd-menos"]');
     botaoMenos.setAttribute('aria-label', 'Diminuir quantidade de ' + nome);
     elemento.querySelector('[data-acao="qtd-mais"]').setAttribute('aria-label', 'Aumentar quantidade de ' + nome);
@@ -160,6 +170,28 @@
     gravarLinha(elemento, info);
     pintarLinha(elemento, info);
     enviarItem('PATCH', elemento, { quantidade: nova }, 'quantidade de ' + info.nome);
+  }
+
+  function renomear(elemento, novoNome) {
+    var info = dadosLinha(elemento);
+    var anterior = info.nome;
+    info.nome = novoNome;
+    gravarLinha(elemento, info);
+    pintarLinha(elemento, info);
+    enviarItem('PATCH', elemento, { nome: novoNome }, 'renomear ' + anterior, function () {
+      info.nome = anterior;
+      gravarLinha(elemento, info);
+      pintarLinha(elemento, info);
+      avisar('Não foi possível renomear «' + anterior + '».', 'erro');
+    });
+  }
+
+  /* Abre o modal já com o nome atual. Chamado no clique do lápis, antes de o
+     Bootstrap mostrar o modal (o listener do Bootstrap corre depois). */
+  function prepararEdicao(elemento) {
+    if (!modalEditar) return;
+    itemEmEdicao = elemento;
+    modalEditar.querySelector('input[name="nome"]').value = dadosLinha(elemento).nome;
   }
 
   function remover(elemento) {
@@ -274,9 +306,30 @@
     if (acao === 'alternar') { evento.preventDefault(); alternar(elemento); }
     else if (acao === 'qtd-mais') { evento.preventDefault(); alterarQuantidade(elemento, 1); }
     else if (acao === 'qtd-menos') { evento.preventDefault(); alterarQuantidade(elemento, -1); }
-    else if (acao === 'remover') { evento.preventDefault(); remover(elemento); }
+    else if (acao === 'editar') {
+      /* Só preenche o modal; o Bootstrap abre-o a seguir. */
+      prepararEdicao(elemento);
+    }
+    else if (acao === 'remover') {
+      /* Nas linhas vindas do servidor o botão abre o modal de confirmação
+         (data-bs-toggle). A remoção só acontece no submit desse modal; se
+         apagássemos aqui, o "Sim, remover" seguinte já não encontrava a linha
+         e o formulário era enviado a sério para /excluir_item_lista/<id>
+         (404, porque o item já tinha sido apagado). Nas linhas criadas no
+         telemóvel não há modal: remove-se na hora, como antes. */
+      if (botao.hasAttribute('data-bs-toggle')) return;
+      evento.preventDefault();
+      remover(elemento);
+    }
     else { return; }
   });
+
+  /* Modal fechado sem guardar: esquece a linha que estava a ser editada. */
+  if (modalEditar) {
+    modalEditar.addEventListener('hidden.bs.modal', function () {
+      itemEmEdicao = null;
+    });
+  }
 
   document.addEventListener('submit', function (evento) {
     var formulario = evento.target.closest('[data-acao-form]');
@@ -286,15 +339,30 @@
       evento.preventDefault();
       adicionar(formulario);
     } else if (acao === 'remover-item') {
-      /* O formulário está dentro do modal, por isso o item vem em data-item-id. */
+      /* O formulário está dentro do modal, por isso o item vem em data-item-id.
+         O submit é sempre cancelado: se a linha já não existir (duplo toque ou
+         outro separador), apenas fecha o modal — nunca navega para a rota
+         antiga, que responderia 404. */
+      evento.preventDefault();
       var id = formulario.getAttribute('data-item-id');
       var elemento = id ? lista.querySelector('[data-item][data-id="' + id + '"]') : null;
-      if (elemento) {
-        evento.preventDefault();
-        var dialogo = formulario.closest('.modal');
-        if (dialogo && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(dialogo).hide();
-        remover(elemento);
+      var dialogo = formulario.closest('.modal');
+      if (dialogo && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(dialogo).hide();
+      if (elemento) remover(elemento);
+    } else if (acao === 'editar-item') {
+      /* O modal é partilhado por todas as linhas; o alvo foi guardado no
+         clique do lápis. O submit é cancelado para não recarregar a página. */
+      evento.preventDefault();
+      var alvo = itemEmEdicao;
+      itemEmEdicao = null;
+      var entrada = formulario.querySelector('input[name="nome"]');
+      var novoNome = (entrada.value || '').trim();
+      var dialogoEdicao = formulario.closest('.modal');
+      if (dialogoEdicao && window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(dialogoEdicao).hide();
       }
+      if (!alvo || !raiz.contains(alvo) || !novoNome) return;
+      if (novoNome !== dadosLinha(alvo).nome) renomear(alvo, novoNome);
     } else if (acao === 'limpar-lista') {
       evento.preventDefault();
       var modal = formulario.closest('.modal');

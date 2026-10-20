@@ -201,11 +201,18 @@
     }
   }
 
-  /* Evita duplicar itens quando o botão é tocado duas vezes seguidas. */
+  /* Evita duplicar itens quando o botão é tocado duas vezes seguidas.
+     Só se aplica a envios que navegam de facto. Quando outro script trata do
+     envio (evento.preventDefault, como a fila offline da Lista e da Despensa),
+     a página fica na mesma e o botão tem de continuar utilizável — caso
+     contrário ficava desabilitado depois do primeiro item. O preventDefault
+     pode ser chamado por um listener registado depois deste, por isso a
+     verificação é feita dentro do setTimeout, já depois de todos correrem. */
   document.addEventListener('submit', function (evento) {
     var formulario = evento.target;
-    if (evento.defaultPrevented || formulario.hasAttribute('data-ch-sem-trava')) return;
+    if (formulario.hasAttribute('data-ch-sem-trava')) return;
     window.setTimeout(function () {
+      if (evento.defaultPrevented) return;
       var botao = formulario.querySelector('button[type="submit"], input[type="submit"]');
       if (botao && !botao.disabled) {
         botao.disabled = true;

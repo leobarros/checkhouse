@@ -105,6 +105,13 @@
                     <span class="badge text-bg-secondary rounded-pill ch-num" data-badge-qtd
                           title="Quantidade comprada" {% if not item.comprado %}hidden{% endif %}>{{ item.quantidade }}</span>
 
+                    <button type="button" data-acao="editar" class="btn-icone btn-link text-primary-emphasis"
+                            data-bs-toggle="modal" data-bs-target="#modalEditarItem"
+                            {% if item.comprado %}hidden{% endif %}
+                            aria-label="Editar {{ item.nome }}" title="Editar item">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                    </button>
+
                     <button type="button" data-acao="remover" class="btn-icone btn-link text-danger-emphasis"
                             data-bs-toggle="modal" data-bs-target="#modalExcluirItem{{ item.id }}"
                             aria-label="Remover {{ item.nome }} da lista" title="Remover item">
@@ -153,6 +160,11 @@
                 </div>
                 <span class="badge text-bg-secondary rounded-pill ch-num" data-badge-qtd
                       title="Quantidade comprada" hidden>1</span>
+                <button type="button" data-acao="editar" class="btn-icone btn-link text-primary-emphasis"
+                        data-bs-toggle="modal" data-bs-target="#modalEditarItem"
+                        aria-label="Editar item" title="Editar item">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                </button>
                 <button type="button" data-acao="remover" class="btn-icone btn-link text-danger-emphasis"
                         aria-label="Remover item" title="Remover item">
                     <i class="bi bi-trash3" aria-hidden="true"></i>
@@ -187,6 +199,31 @@
     </div>
 </div>
 
+<!-- Modal: editar o nome de um item (serve linhas do servidor e novas) -->
+<div class="modal fade" id="modalEditarItem" tabindex="-1" aria-labelledby="tituloEditarItem" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h2 class="modal-title fs-5" id="tituloEditarItem">
+                    <i class="bi bi-pencil-square me-2" aria-hidden="true"></i>Editar item
+                </h2>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form data-acao-form="editar-item">
+                <div class="modal-body">
+                    <label for="nomeItemEditar" class="form-label">O que falta comprar?</label>
+                    <input type="text" class="form-control" id="nomeItemEditar" name="nome"
+                           maxlength="100" autocomplete="off" required data-autofocus-modal>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Modais: remover item -->
 {% for item in itens %}
 <div class="modal fade" id="modalExcluirItem{{ item.id }}" tabindex="-1"
@@ -211,6 +248,9 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <form action="{{ url_for('excluir_item_lista', item_id=item.id) }}" method="POST" class="m-0"
                       data-acao-form="remover-item" data-item-id="{{ item.id }}">
+                    <!-- Permite voltar à lista se o item já tiver sido apagado
+                         (confirmação repetida/atrasada), em vez de 404. -->
+                    <input type="hidden" name="local_id" value="{{ local.id }}">
                     <button type="submit" class="btn btn-danger">Sim, remover</button>
                 </form>
             </div>

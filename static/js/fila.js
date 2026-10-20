@@ -199,7 +199,17 @@
         continue; /* POST (criação) não se junta */
       }
 
-      if (nova.metodo === 'PATCH' && atual.metodo === 'PATCH') return i;
+      if (nova.metodo === 'PATCH' && atual.metodo === 'PATCH') {
+        /* Só junta PATCHes que alteram o mesmo campo (último valor ganha).
+           Juntar campos diferentes mudaria a ordem em que o servidor os
+           aplica — p.ex. "comprado" antes da quantidade faria a quantidade
+           ser ignorada. Nesses casos ficam duas operações, pela ordem certa. */
+        var chavesAtuais = Object.keys(atual.corpo || {});
+        var chavesNovas = Object.keys(nova.corpo || {});
+        var mesmosCampos = chavesAtuais.length === chavesNovas.length &&
+          chavesNovas.every(function (chave) { return chavesAtuais.indexOf(chave) !== -1; });
+        if (mesmosCampos) return i;
+      }
     }
     return -1;
   }

@@ -1,8 +1,10 @@
 import os
 import json
+import re
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 from flask import (Flask, render_template, request, redirect, url_for, flash, Response,
-                   send_file, send_from_directory, jsonify, make_response)
+                   send_file, send_from_directory, jsonify, make_response, session)
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Local, Produto, ItemCompra, Usuario, OperacaoCliente
@@ -36,6 +38,7 @@ def _calcular_versao_assets():
         'js/estado-fila.js',
         'js/pagina-lista.js',
         'js/pagina-despensa.js',
+        'sw.js',
     ]
     resumo = hashlib.sha256()
     for relativo in ficheiros:
@@ -173,7 +176,10 @@ def ver_despensa(local_id):
     produtos = Produto.query.filter_by(local_id=local_id).order_by(Produto.nome).all()
     itens = ItemCompra.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
-    
+
+    # Reserva para confirmações atrasadas sem local_id nem Referer.
+    session['ultima_despensa_id'] = local.id
+
     return _pagina_cacheavel(render_template('despensa.html', local=local, produtos=produtos, sugestoes=sugestoes))
 
 @app.route('/adicionar_produto/<int:local_id>', methods=['POST'])
@@ -200,12 +206,25 @@ def adicionar_produto(local_id):
 @app.route('/eliminar_produto/<int:produto_id>', methods=['POST'])
 @login_required
 def eliminar_produto(produto_id):
-    produto = Produto.query.get_or_404(produto_id)
-    
+    produto = Produto.query.get(produto_id)
+
+    # Já não existe (duplo toque, confirmação atrasada ou outro separador):
+    # volta para a despensa de onde veio em vez de mostrar 404 ou a página inicial.
+    if produto is None:
+        local_id = request.form.get('local_id', type=int)
+        local = _local_do_usuario(local_id) if local_id else None
+        if local is None:
+            local = _local_do_referer('despensa')
+        if local is None:
+            local = _local_do_usuario(session.get('ultima_despensa_id'))
+        if local:
+            return redirect(url_for('ver_despensa', local_id=local.id))
+        return redirect(url_for('index'))
+
     # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
     if produto.local.usuario_id != current_user.id:
         return "Acesso Negado", 403 # Retorna erro de permissão
-        
+
     db.session.delete(produto)
     db.session.commit()
     return redirect(url_for('ver_despensa', local_id=produto.local_id))
@@ -272,7 +291,10 @@ def ver_lista(local_id):
     itens = ItemCompra.query.filter_by(local_id=local_id).order_by(ItemCompra.comprado, ItemCompra.nome).all()
     produtos = Produto.query.filter_by(local_id=local_id).all()
     sugestoes = sorted(list(set([p.nome for p in produtos] + [i.nome for i in itens])))
-    
+
+    # Reserva para confirmações atrasadas sem local_id nem Referer.
+    session['ultima_lista_id'] = local.id
+
     return _pagina_cacheavel(render_template('lista.html', local=local, itens=itens, sugestoes=sugestoes))
 
 # Rota para adicionar item na lista
@@ -340,7 +362,20 @@ def toggle_compra(item_id):
 @app.route('/excluir_item_lista/<int:item_id>', methods=['POST'])
 @login_required
 def excluir_item_lista(item_id):
-    item = ItemCompra.query.get_or_404(item_id)
+    item = ItemCompra.query.get(item_id)
+
+    # Já não existe (duplo toque, confirmação atrasada ou outro separador):
+    # volta para a lista de onde veio em vez de mostrar 404 ou a página inicial.
+    if item is None:
+        local_id = request.form.get('local_id', type=int)
+        local = _local_do_usuario(local_id) if local_id else None
+        if local is None:
+            local = _local_do_referer('lista')
+        if local is None:
+            local = _local_do_usuario(session.get('ultima_lista_id'))
+        if local:
+            return redirect(url_for('ver_lista', local_id=local.id))
+        return redirect(url_for('index'))
 
     # BARREIRA DE SEGURANÇA: O local deste produto pertence a este utilizador?
     if item.local.usuario_id != current_user.id:
@@ -460,17 +495,23 @@ LIMITE_TEXTO = 100
 
 # As páginas da Lista e da Despensa podem ser guardadas no cache do navegador:
 # é o que permite ao Safari abrir a lista sem rede em http://IP (onde não há
-# Service Worker, porque não é contexto seguro). A página pode chegar 5 minutos
-# "velha", mas o JavaScript volta a ler a lista no servidor quando há rede
-# (ver reconciliar() em static/js/pagina-*.js), por isso corrige-se sozinha.
-SEGUNDOS_CACHE_PAGINA = int(os.environ.get('CH_CACHE_PAGINA', 3600))
+# Service Worker, porque não é contexto seguro). A página pode chegar alguns
+# minutos "velha", mas o JavaScript volta a ler a lista no servidor quando há
+# rede (ver reconciliar() em static/js/pagina-*.js), por isso corrige-se sozinha.
+#
+# O HTML guardado não pode durar muito: ele referencia os assets por ?v=<hash>,
+# e uma página antiga prende o browser à versão antiga do JavaScript durante
+# 30 dias (cache dos assets). Por isso max-age curto; offline continua coberto
+# por stale-if-error, que serve a última página durante uma semana.
+SEGUNDOS_CACHE_PAGINA = int(os.environ.get('CH_CACHE_PAGINA', 300))
+SEGUNDOS_REVALIDACAO_PAGINA = int(os.environ.get('CH_CACHE_PAGINA_SWR', 600))
 
 
 def _pagina_cacheavel(resposta):
     resposta = make_response(resposta)
     resposta.headers['Cache-Control'] = (
-        'private, max-age={0}, stale-while-revalidate=604800, stale-if-error=604800'
-    ).format(SEGUNDOS_CACHE_PAGINA)
+        'private, max-age={0}, stale-while-revalidate={1}, stale-if-error=604800'
+    ).format(SEGUNDOS_CACHE_PAGINA, SEGUNDOS_REVALIDACAO_PAGINA)
     return resposta
 
 
@@ -531,7 +572,24 @@ def _registar_operacao(uid, tipo, recurso_id, corpo, status=200):
 
 def _local_do_usuario(local_id):
     """Devolve o local apenas se pertencer ao utilizador autenticado."""
+    if not local_id:
+        return None
     return Local.query.filter_by(id=local_id, usuario_id=current_user.id).first()
+
+
+def _local_do_referer(pagina):
+    """Local da página de onde o formulário foi enviado (lista/despensa).
+
+    Uma confirmação atrasada pode vir de uma página antiga em cache, sem o
+    campo local_id; o Referer permite voltar ao sítio certo (a lista de
+    compras) em vez de à página inicial. Só aceita locais do próprio
+    utilizador — nunca redireciona para um local alheio.
+    """
+    caminho = urlparse(request.referrer or '').path
+    encontrado = re.match(r'^/' + pagina + r'/(\d+)$', caminho)
+    if not encontrado:
+        return None
+    return _local_do_usuario(int(encontrado.group(1)))
 
 
 def _texto(valor, limite=LIMITE_TEXTO):

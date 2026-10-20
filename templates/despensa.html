@@ -170,6 +170,9 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                 <form action="{{ url_for('eliminar_produto', produto_id=produto.id) }}" method="POST" class="m-0"
                       data-acao-form="remover-produto" data-produto-id="{{ produto.id }}">
+                    <!-- Permite voltar à despensa se o produto já tiver sido
+                         apagado (confirmação repetida/atrasada), em vez de 404. -->
+                    <input type="hidden" name="local_id" value="{{ local.id }}">
                     <button type="submit" class="btn btn-danger">Sim, remover</button>
                 </form>
             </div>

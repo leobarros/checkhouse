@@ -40,7 +40,11 @@ var ESSENCIAIS = [
   '/static/vendor/bootstrap/bootstrap.bundle.min.js',
   '/static/vendor/bootstrap-icons/bootstrap-icons.css',
   '/static/vendor/bootstrap-icons/fonts/bootstrap-icons.woff2'
-];
+].map(function (url) {
+  /* Guarda com o mesmo ?v= que as páginas pedem: assim o cache primeiro
+     acerta na versão certa em vez de servir sempre a cópia antiga. */
+  return url + '?v=' + encodeURIComponent(VERSAO);
+});
 
 var TEMPO_LIMITE_REDE = 4000;
 
@@ -111,9 +115,12 @@ function redePrimeiro(pedido, nomeCache, reserva) {
   });
 }
 
-/** Cache primeiro (assets versionados por ?v=). */
+/** Cache primeiro por versão exata (?v=). Uma versão nova de um asset vai à
+ *  rede em vez de reutilizar a cópia antiga; só offline se aceita a última
+ *  versão conhecida (ignoreSearch). Sem isto o ?v= era ignorado e um deploy
+ *  podia continuar a servir o JavaScript antigo. */
 function cachePrimeiro(pedido) {
-  return caches.match(pedido, { ignoreSearch: true }).then(function (guardada) {
+  return caches.match(pedido).then(function (guardada) {
     if (guardada) {
       /* Atualiza em segundo plano, sem bloquear. */
       fetch(pedido).then(function (resposta) {
@@ -129,6 +136,12 @@ function cachePrimeiro(pedido) {
         caches.open(CACHE_ESTATICO).then(function (cache) { cache.put(pedido, copia); });
       }
       return resposta;
+    }).catch(function () {
+      /* Offline: usa a última versão guardada, mesmo com outro ?v=. */
+      return caches.match(pedido, { ignoreSearch: true }).then(function (antiga) {
+        if (antiga) return antiga;
+        return new Response('', { status: 504, statusText: 'Sem ligação' });
+      });
     });
   });
 }
