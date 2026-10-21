@@ -5,19 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
     <meta name="theme-color" content="#0d6efd">
-    <title>Sem ligação · CheckHouse</title>
+    <title>Sem conexão · CheckHouse</title>
     <link rel="icon" type="image/svg+xml" href="/static/icons/favicon.svg">
     <link rel="stylesheet" href="/static/vendor/bootstrap/bootstrap.min.css">
     <link rel="stylesheet" href="/static/css/app.css">
     <script>
         (function () {
+            var p = null;
             try {
-                var p = window.localStorage.getItem('temaCheckHouse');
-                if (p !== 'light' && p !== 'dark') {
-                    p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                document.documentElement.setAttribute('data-bs-theme', p);
-            } catch (e) { /* tema claro por omissão */ }
+                p = window.localStorage.getItem('temaCheckHouse');
+            } catch (e) {
+                p = null;
+            }
+            if (p !== 'light' && p !== 'dark' && p !== 'auto') {
+                var encontrado = document.cookie.match(/(?:^|;\s*)ch_tema=(light|dark|auto)/);
+                p = encontrado ? encontrado[1] : null;
+            }
+            if (p !== 'light' && p !== 'dark') {
+                p = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.setAttribute('data-bs-theme', p);
         })();
     </script>
 </head>
@@ -37,12 +44,12 @@
                 <div class="card-body text-center p-4">
                     <div class="ch-vazio">
                         <i class="bi bi-wifi-off" aria-hidden="true"></i>
-                        <span class="ch-vazio-titulo">Sem ligação à rede</span>
+                        <span class="ch-vazio-titulo">Sem conexão</span>
                         <span>Não foi possível carregar esta página agora.</span>
                     </div>
                     <p class="text-body-secondary small mb-3">
-                        As alterações que fez no supermercado continuam guardadas no telemóvel e são
-                        enviadas automaticamente assim que houver rede.
+                        As alterações que fez no supermercado continuam salvas no celular e são
+                        enviadas automaticamente assim que houver conexão.
                     </p>
                     <button type="button" class="btn btn-primary" onclick="window.location.reload()">
                         <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i> Tentar novamente

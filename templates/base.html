@@ -1,11 +1,14 @@
 <!DOCTYPE html>
-<html lang="pt-BR" data-bs-theme="light">
+{% set tema_cookie = request.cookies.get('ch_tema') %}
+<html lang="pt-BR"
+      data-bs-theme="{{ 'dark' if tema_cookie == 'dark' else 'light' }}"
+      data-ch-tema="{{ tema_cookie if tema_cookie in ('light', 'dark', 'auto') else 'auto' }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Faz com que controlos nativos (scrollbars, inputs, date pickers) sigam o tema -->
     <meta name="color-scheme" content="light dark">
-    <meta id="metaCorTema" name="theme-color" content="#0d6efd">
+    <meta id="metaCorTema" name="theme-color" content="{{ '#343a40' if tema_cookie == 'dark' else '#0d6efd' }}">
     <meta name="description" content="CheckHouse — despensa e listas de compras organizadas por casa.">
     <title>{% block titulo %}CheckHouse{% endblock %}</title>
 
@@ -18,18 +21,47 @@
     <meta name="apple-mobile-web-app-title" content="CheckHouse">
 
     <!-- Script de arranque do tema: tem de correr ANTES do CSS para o modo escuro
-         não aparecer como um flash branco em cada navegação. -->
+         não aparecer como um flash branco em cada navegação. Lê primeiro o
+         localStorage e, se este estiver indisponível (modo privado, cookies de
+         terceiros bloqueados, etc.), usa o cookie definido em app.js. O valor
+         também chega pronto do servidor em data-bs-theme. -->
     <script>
         (function () {
-            try {
-                var preferencia = window.localStorage.getItem('temaCheckHouse');
-                if (preferencia !== 'light' && preferencia !== 'dark') {
-                    preferencia = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            var CHAVE = 'temaCheckHouse';
+            var COOKIE = 'ch_tema';
+
+            function lerCookie() {
+                var partes = document.cookie ? document.cookie.split('; ') : [];
+                for (var i = 0; i < partes.length; i++) {
+                    var pos = partes[i].indexOf('=');
+                    if (pos < 1 || partes[i].slice(0, pos) !== COOKIE) continue;
+                    try {
+                        return decodeURIComponent(partes[i].slice(pos + 1));
+                    } catch (e) {
+                        return null;
+                    }
                 }
-                document.documentElement.setAttribute('data-bs-theme', preferencia);
-            } catch (e) {
-                /* localStorage indisponível: mantém o tema claro por omissão */
+                return null;
             }
+
+            var preferencia = null;
+            try {
+                preferencia = window.localStorage.getItem(CHAVE);
+            } catch (e) {
+                preferencia = null;
+            }
+            if (preferencia !== 'light' && preferencia !== 'dark' && preferencia !== 'auto') {
+                preferencia = lerCookie();
+            }
+            if (preferencia !== 'light' && preferencia !== 'dark' && preferencia !== 'auto') {
+                preferencia = 'auto';
+            }
+
+            var efetivo = preferencia === 'light' || preferencia === 'dark'
+                ? preferencia
+                : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-bs-theme', efetivo);
+            document.documentElement.setAttribute('data-ch-tema', preferencia);
         })();
     </script>
 

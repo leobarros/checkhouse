@@ -1,7 +1,7 @@
 {
   "name": "CheckHouse — despensa e listas",
   "short_name": "CheckHouse",
-  "description": "Despensa e listas de compras organizadas por casa, com fila offline.",
+  "description": "Despensa e listas de compras organizadas por casa, com fila que funciona sem internet.",
   "lang": "pt-BR",
   "dir": "ltr",
   "start_url": "/",

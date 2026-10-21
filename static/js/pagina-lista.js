@@ -74,7 +74,7 @@
     var botaoEditar = elemento.querySelector('[data-acao="editar"]');
     if (botaoEditar) {
       botaoEditar.setAttribute('aria-label', 'Editar ' + nome);
-      /* Renomear um item já comprado deixaria o stock com o nome antigo
+      /* Renomear um item já comprado deixaria o estoque com o nome antigo
          (a baixa da despensa é feita pelo nome). Para editar, desmarca-se. */
       botaoEditar.hidden = info.comprado;
     }

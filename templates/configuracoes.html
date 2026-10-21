@@ -61,11 +61,11 @@
     </div>
 </div>
 
-<!-- Backup e restauro -->
+<!-- Cópia de segurança e restauração -->
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body">
-        <h2 class="h5 card-title"><i class="bi bi-cloud-arrow-down me-1" aria-hidden="true"></i> Backup e restauro</h2>
-        <p class="text-body-secondary">Guarde uma cópia de segurança das suas despensas e listas, ou restaure um backup anterior.</p>
+        <h2 class="h5 card-title"><i class="bi bi-cloud-arrow-down me-1" aria-hidden="true"></i> Cópia de segurança e restauração</h2>
+        <p class="text-body-secondary">Guarde uma cópia de segurança das suas despensas e listas, ou restaure uma cópia anterior.</p>
 
         <a href="{{ url_for('exportar_dados') }}" class="btn btn-success">
             <i class="bi bi-download me-1" aria-hidden="true"></i> Exportar dados (.json)
@@ -76,9 +76,9 @@
         <form action="{{ url_for('importar_dados') }}" method="POST" enctype="multipart/form-data">
             <div class="row g-2 align-items-start">
                 <div class="col-12 col-sm">
-                    <label class="form-label" for="arquivoBackup">Restaurar de um backup</label>
-                    <input type="file" id="arquivoBackup" name="arquivo" class="form-control"
-                           accept="application/json,.json" required aria-describedby="dicaBackup">
+                    <label class="form-label" for="arquivoCopia">Restaurar de uma cópia de segurança</label>
+                    <input type="file" id="arquivoCopia" name="arquivo" class="form-control"
+                           accept="application/json,.json" required aria-describedby="dicaCopia">
                 </div>
                 <div class="col-12 col-sm-auto d-grid d-sm-block align-self-sm-end">
                     <button type="submit" class="btn btn-outline-primary">
@@ -86,7 +86,7 @@
                     </button>
                 </div>
                 <div class="col-12">
-                    <div id="dicaBackup" class="form-text">
+                    <div id="dicaCopia" class="form-text">
                         A importação <strong>adiciona</strong> os locais do arquivo à sua conta; os dados atuais não são substituídos.
                     </div>
                 </div>

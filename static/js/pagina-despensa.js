@@ -56,7 +56,7 @@
 
     elemento.querySelector('[data-meta-texto]').textContent = emFalta
       ? 'Em falta — foi adicionado à lista de compras'
-      : info.quantidade + ' em stock';
+      : info.quantidade + ' em estoque';
 
     var menos = elemento.querySelector('[data-acao="qtd-menos"]');
     menos.disabled = emFalta;

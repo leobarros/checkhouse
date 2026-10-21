@@ -20,6 +20,10 @@
   var esconderEm = null;
   var sincronizouAlgumaVez = false;
 
+  function textoPlural(n, um, varios) {
+    return n === 1 ? um : varios;
+  }
+
   function construir() {
     barra = document.createElement('div');
     barra.className = 'ch-barra-fila';
@@ -38,7 +42,7 @@
 
     botaoSincronizar.addEventListener('click', function () {
       botaoSincronizar.disabled = true;
-      textoBarra.textContent = 'A sincronizar…';
+      textoBarra.textContent = 'Sincronizando…';
       Promise.resolve(Fila.processar()).then(function () {
         botaoSincronizar.disabled = false;
       });
@@ -74,7 +78,8 @@
     if (estado.sessaoExpirada) {
       barra.hidden = false;
       barra.classList.add('ch-barra-fila--alerta');
-      textoBarra.textContent = 'Sessão expirada · ' + estado.pendentes + ' guardada(s)';
+      textoBarra.textContent = 'Sessão expirada · ' + estado.pendentes + ' ' +
+        textoPlural(estado.pendentes, 'alteração salva', 'alterações salvas');
       ligacaoSessao.hidden = false;
       ligacaoSessao.href = '/login?next=' + encodeURIComponent(window.location.pathname);
       botaoSincronizar.hidden = true;
@@ -106,13 +111,16 @@
     barra.classList.remove('ch-barra-fila--ok');
     barra.classList.toggle('ch-barra-fila--alerta', !estado.online);
     if (estado.processando) {
-      textoBarra.textContent = 'A sincronizar ' + estado.pendentes + '…';
+      textoBarra.textContent = 'Sincronizando ' + estado.pendentes + ' ' +
+        textoPlural(estado.pendentes, 'alteração', 'alterações') + '…';
       botaoSincronizar.hidden = true;
     } else if (!estado.online) {
-      textoBarra.textContent = 'Sem rede · ' + estado.pendentes + ' guardada(s)';
+      textoBarra.textContent = 'Sem conexão · ' + estado.pendentes + ' ' +
+        textoPlural(estado.pendentes, 'alteração salva', 'alterações salvas');
       botaoSincronizar.hidden = true;
     } else {
-      textoBarra.textContent = estado.pendentes + ' por sincronizar';
+      textoBarra.textContent = estado.pendentes + ' ' +
+        textoPlural(estado.pendentes, 'alteração pendente', 'alterações pendentes');
       botaoSincronizar.hidden = false;
     }
   }

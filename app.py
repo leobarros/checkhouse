@@ -63,7 +63,7 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login' # Se não estiver logado, redireciona para cá
-login_manager.login_message = "Por favor, faça login para acessar esta página."
+login_manager.login_message = "Por favor, entre na sua conta para acessar esta página."
 login_manager.login_message_category = "warning"
 
 @login_manager.user_loader
@@ -137,7 +137,7 @@ def registrar():
         
         db.session.add(novo_usuario)
         db.session.commit()
-        flash('Usuário criado com sucesso! Faça login.', 'success')
+        flash('Usuário criado com sucesso! Entre na sua conta.', 'success')
         return redirect(url_for('login'))
         
     return render_template('registrar.html')
@@ -431,9 +431,9 @@ def alterar_senha():
     if check_password_hash(current_user.senha_hash, senha_atual):
         current_user.senha_hash = generate_password_hash(nova_senha)
         db.session.commit()
-        flash('Palavra-passe atualizada com sucesso!', 'success')
+        flash('Senha atualizada com sucesso!', 'success')
     else:
-        flash('A palavra-passe atual está incorreta.', 'danger')
+        flash('A senha atual está incorreta.', 'danger')
     return redirect(url_for('configuracoes'))
 
 @app.route('/exportar_dados')
@@ -450,7 +450,7 @@ def exportar_dados():
         dados.append(dados_local)
         
     json_str = json.dumps(dados, indent=4)
-    return Response(json_str, mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=checkhouse_backup.json'})
+    return Response(json_str, mimetype='application/json', headers={'Content-Disposition': 'attachment;filename=checkhouse-copia-de-seguranca.json'})
 
 @app.route('/importar_dados', methods=['POST'])
 @login_required
@@ -469,7 +469,7 @@ def importar_dados():
                 db.session.add(ItemCompra(nome=i_data['nome'], quantidade=i_data['quantidade'], comprado=i_data['comprado'], local_id=novo_local.id))
         
         db.session.commit()
-        flash('Backup restaurado com sucesso!', 'success')
+        flash('Cópia de segurança restaurada com sucesso!', 'success')
     return redirect(url_for('configuracoes'))
 
 @app.route('/excluir_conta', methods=['POST'])

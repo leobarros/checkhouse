@@ -10,18 +10,41 @@
   'use strict';
 
   var CHAVE_TEMA = 'temaCheckHouse';
+  var COOKIE_TEMA = 'ch_tema';
   var CHAVE_SCROLL = 'ch:scroll';
   var raiz = document.documentElement;
   var mediaEscuro = window.matchMedia('(prefers-color-scheme: dark)');
 
   /* ------------------------------------------------------------------ tema */
-  function lerPreferencia() {
-    try {
-      var v = window.localStorage.getItem(CHAVE_TEMA);
-      return v === 'light' || v === 'dark' ? v : 'auto';
-    } catch (e) {
-      return 'auto';
+  function preferenciaValida(valor) {
+    return valor === 'light' || valor === 'dark' || valor === 'auto' ? valor : null;
+  }
+
+  function lerCookie(nome) {
+    var partes = document.cookie ? document.cookie.split('; ') : [];
+    for (var i = 0; i < partes.length; i++) {
+      var pos = partes[i].indexOf('=');
+      if (pos < 1 || partes[i].slice(0, pos) !== nome) continue;
+      try {
+        return decodeURIComponent(partes[i].slice(pos + 1));
+      } catch (e) {
+        return null;
+      }
     }
+    return null;
+  }
+
+  function lerPreferencia() {
+    var valor = null;
+    try {
+      valor = window.localStorage.getItem(CHAVE_TEMA);
+    } catch (e) {
+      valor = null;
+    }
+    valor = preferenciaValida(valor);
+    if (valor) return valor;
+    /* Reserva: o localStorage pode estar indisponível no telemóvel. */
+    return preferenciaValida(lerCookie(COOKIE_TEMA)) || 'auto';
   }
 
   function gravarPreferencia(valor) {
@@ -33,6 +56,15 @@
       }
     } catch (e) {
       /* modo privado: o tema continua a funcionar apenas nesta sessão */
+    }
+    /* O cookie é lido pelo servidor (data-bs-theme) e pelo arranque da página,
+       por isso o tema sobrevive mesmo quando o localStorage está bloqueado. */
+    try {
+      document.cookie =
+        COOKIE_TEMA + '=' + encodeURIComponent(valor) +
+        '; path=/; max-age=31536000; SameSite=Lax';
+    } catch (e) {
+      /* sem cookies: fica só o localStorage */
     }
   }
 
@@ -222,7 +254,12 @@
     }, 0);
   });
 
-  window.addEventListener('pageshow', function () {
+  window.addEventListener('pageshow', function (evento) {
+    /* Ao voltar com o botão “atrás”, o browser pode restaurar a página tal
+       como estava (bfcache) sem correr os scripts outra vez. Reaplicamos o
+       tema para a página antiga não reaparecer clara. */
+    aplicarTema(lerPreferencia());
+
     document
       .querySelectorAll('form[aria-busy="true"] button[type="submit"][disabled], input[type="submit"][disabled]')
       .forEach(function (botao) {
@@ -235,7 +272,12 @@
 
   /* --------------------------------------------------------------- arranque */
   function iniciar() {
-    aplicarTema(lerPreferencia());
+    var preferencia = lerPreferencia();
+    aplicarTema(preferencia);
+
+    /* Quem já tinha o tema guardado só no localStorage passa a ter também o
+       cookie, para o servidor o poder aplicar em qualquer página. */
+    if (lerCookie(COOKIE_TEMA) !== preferencia) gravarPreferencia(preferencia);
 
     /* Datalists grandes: o browser filtra sozinho; nada a fazer. */
 
