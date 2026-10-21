@@ -121,7 +121,10 @@
   /* Compatibilidade com o código existente (onclick="alternarTema()"). */
   window.alternarTema = function () {
     var efetivo = temaEfetivo(lerPreferencia());
-    return aplicarTema(efetivo === 'dark' ? 'light' : 'dark');
+    var novo = efetivo === 'dark' ? 'light' : 'dark';
+    /* Gravar é essencial: sem isto o tema mudava só na página atual. */
+    gravarPreferencia(novo);
+    return aplicarTema(novo);
   };
 
   window.definirTema = function (valor) {
